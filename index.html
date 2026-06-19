@@ -586,7 +586,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 </div>
 
 <!-- ── New Notice Modal ── -->
-<div class="modal-bg" id="nnBg" onclick="if(event.target===this)closeNewNoticeModal()">
+<div class="modal-bg" id="nnBg">
   <div class="modal nn-modal">
     <div class="modal-head">
       <svg class="icon" width="16" height="16"><use href="#ico-plus"/></svg>
@@ -614,7 +614,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 </div>
 
 <!-- ── Add/Edit Slot Modal ── -->
-<div class="modal-bg" id="modalBg" onclick="bgClick(event)">
+<div class="modal-bg" id="modalBg">
   <div class="modal">
     <div class="modal-head">
       <svg class="icon" width="16" height="16"><use href="#ico-clip"/></svg>
@@ -728,7 +728,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 </div>
 
 <!-- ── Assignee Manager Modal ── -->
-<div class="modal-bg" id="amBg" onclick="if(event.target===this)closeAM()">
+<div class="modal-bg" id="amBg">
   <div class="modal am-modal">
     <div class="modal-head">
       <svg class="icon" width="16" height="16"><use href="#ico-person"/></svg>
@@ -744,7 +744,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 </div>
 
 <!-- ── Header Settings Modal ── -->
-<div class="modal-bg" id="hdBg" onclick="if(event.target===this)closeHeaderSettings()">
+<div class="modal-bg" id="hdBg">
   <div class="modal hd-modal">
     <div class="modal-head">
       <svg class="icon" width="16" height="16"><use href="#ico-edit"/></svg>
@@ -1368,7 +1368,6 @@ function editSlot(id){
   document.getElementById('modalBg').classList.add('open');
 }
 function closeModal(){document.getElementById('modalBg').classList.remove('open');closeCpop();}
-function bgClick(e){if(e.target===document.getElementById('modalBg'))closeModal();}
 
 // live-update colour pickers as the assignee text field changes
 document.getElementById('f_assignees').addEventListener('input', e=>{
@@ -1641,6 +1640,17 @@ function saveHeaderSettings(){
 ══════════════════════════════════════ */
 document.getElementById('filterDate').addEventListener('change',render);
 document.getElementById('filterType').addEventListener('change',render);
+
+/* ══════════════════════════════════════
+   ESC KEY TO CLOSE MODALS (safe, explicit)
+══════════════════════════════════════ */
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  if(document.getElementById('modalBg').classList.contains('open')) closeModal();
+  else if(document.getElementById('nnBg').classList.contains('open')) closeNewNoticeModal();
+  else if(document.getElementById('amBg').classList.contains('open')) closeAM();
+  else if(document.getElementById('hdBg').classList.contains('open')) closeHeaderSettings();
+});
 </script>
 </body>
 </html>
