@@ -115,6 +115,7 @@ a{color:inherit}
 .nc-menu{position:fixed;z-index:250;background:#fff;border:1px solid var(--border);
   border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;min-width:180px;display:none}
 .nc-menu.show{display:block}
+.nc-menu.nc-menu-scroll{max-height:min(60vh,420px);overflow-y:auto}
 .nc-menu button{width:100%;text-align:left;padding:10px 14px;border:none;background:none;
   font-size:.82rem;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px;
   font-family:inherit;white-space:nowrap}
@@ -630,8 +631,9 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
       <button class="header-edit-btn" onclick="openHeaderSettings()">
         <svg class="icon" width="13" height="13"><use href="#ico-edit"/></svg> 編輯標題
       </button>
-      <span class="readonly-corner-badge">
-        <svg class="icon" width="12" height="12"><use href="#ico-eye"/></svg> 僅供檢視
+      <span class="readonly-corner-badge" id="readonlyBadge">
+        <svg class="icon" width="12" height="12"><use href="#ico-eye"/></svg>
+        <span id="readonlyBadgeText">僅供檢視</span>
       </span>
       <div class="header-inner">
         <div class="header-title">
@@ -1145,6 +1147,7 @@ const HD_DEFAULTS = {
 ══════════════════════════════════════ */
 let isReadOnlyMode = false;
 let readOnlyNoticeId = null;
+let readOnlyTypeFilter = null;
 
 function getUrlParam(name){
   return new URLSearchParams(window.location.search).get(name);
@@ -1168,6 +1171,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
     // read-only share link: skip password gate entirely
     isReadOnlyMode = true;
     readOnlyNoticeId = viewId;
+    readOnlyTypeFilter = getUrlParam('type') || null;
     document.body.classList.add('readonly-mode');
     document.getElementById('gateScreen').classList.add('hide');
     bootApp();
@@ -1247,7 +1251,7 @@ function escapeHtml(s){
 function openNcMenu(e, id){
   const menu = document.getElementById('ncMenu');
   menu.innerHTML = `
-    <button onclick="copyShareLink('${id}')">${svgIcon('ico-link',14)} 複製分享連結</button>
+    <button onclick="openShareTypeMenu('${id}')">${svgIcon('ico-link',14)} 複製分享連結</button>
     <button onclick="duplicateNotice('${id}')">${svgIcon('ico-copy',14)} 複製通告</button>
     <button class="danger" onclick="confirmDeleteNotice('${id}')">${svgIcon('ico-trash',14)} 刪除通告</button>
   `;
@@ -1264,10 +1268,31 @@ function openNcMenu(e, id){
   menu.classList.add('show');
 }
 const SHARE_LINK_BASE = 'https://construction-notice-share.wei9106.workers.dev/';
-function copyShareLink(id){
+const SHARE_TYPE_LIST = ['水電','圖威','文保','木工','油漆','大圖輸出','貼圖','美術','多媒體','清潔','燈光','其他'];
+
+function openShareTypeMenu(id){
+  const menu = document.getElementById('ncMenu');
+  const typeButtons = SHARE_TYPE_LIST.map(t=>{
+    const cfg = TYPE_CFG[t];
+    return `<button onclick="copyShareLink('${id}','${t}')">
+      <span style="width:8px;height:8px;border-radius:50%;background:${cfg?.color||'#999'};display:inline-block;flex-shrink:0"></span>
+      ${t}
+    </button>`;
+  }).join('');
+  menu.innerHTML = `
+    <button onclick="copyShareLink('${id}','')" style="font-weight:700;border-bottom:1px solid var(--border)">
+      ${svgIcon('ico-link',14)} 全部工種（完整通告）
+    </button>
+    ${typeButtons}
+  `;
+  menu.classList.add('nc-menu-scroll');
+}
+function copyShareLink(id, type){
   document.getElementById('ncMenu').classList.remove('show');
-  const url = `${SHARE_LINK_BASE}?view=${id}`;
-  const done = ()=> alert('已複製唯讀分享連結：\n' + url + '\n\n此連結免密碼即可開啟，僅供瀏覽，無法修改內容。');
+  document.getElementById('ncMenu').classList.remove('nc-menu-scroll');
+  const url = type ? `${SHARE_LINK_BASE}?view=${id}&type=${encodeURIComponent(type)}` : `${SHARE_LINK_BASE}?view=${id}`;
+  const scopeText = type ? `僅顯示「${type}」工種的工作項目` : '顯示完整通告內容';
+  const done = ()=> alert('已複製唯讀分享連結：\n' + url + '\n\n' + scopeText + '。此連結免密碼即可開啟，僅供瀏覽，無法修改內容。');
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(url).then(done).catch(()=>{
       prompt('請手動複製以下唯讀分享連結：', url);
@@ -1377,7 +1402,13 @@ async function openNotice(id){
 
   applyHeaderCfg();
   document.getElementById('filterDate').value='';
-  document.getElementById('filterType').value='';
+  if(isReadOnlyMode && readOnlyTypeFilter){
+    document.getElementById('filterType').value = readOnlyTypeFilter;
+    const badgeText = document.getElementById('readonlyBadgeText');
+    if(badgeText) badgeText.textContent = `僅供檢視・${readOnlyTypeFilter}`;
+  }else{
+    document.getElementById('filterType').value='';
+  }
   updateDateFilterLabel();
   render();
   setSaveStatus('saved');
@@ -1865,6 +1896,9 @@ function closeAM(){document.getElementById('amBg').classList.remove('open');}
 ══════════════════════════════════════ */
 function exportJPG(){
   const hint=document.getElementById('exportHint');
+  const hintText = hint.querySelector('p');
+  const curType = document.getElementById('filterType').value;
+  if(hintText) hintText.textContent = curType ? `正在產生「${curType}」篩選版 JPG，請稍候…` : '正在產生 JPG，請稍候…';
   hint.classList.add('show');
   document.querySelectorAll('.slot-actions').forEach(el=>el.style.display='none');
   document.querySelectorAll('.drag-handle').forEach(el=>el.style.display='none');
@@ -1889,7 +1923,8 @@ function exportJPG(){
       hint.classList.remove('show');
       const a=document.createElement('a');
       a.href=canvas.toDataURL('image/jpeg',0.93);
-      a.download=`${(headerCfg?.title||'施工安排')}_${new Date().toISOString().slice(0,10)}.jpg`;
+      const typeSuffix = curType ? `-${curType}` : '';
+      a.download=`${(headerCfg?.title||'施工安排')}_${new Date().toISOString().slice(0,10)}${typeSuffix}.jpg`;
       a.click();
     }).catch(()=>{
       toolbar.style.display='';
