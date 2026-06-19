@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>施工安排通告系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc,
+    serverTimestamp, query, orderBy
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD6t7woI7dDhIU-Ta9bQJyIUcdyNOHMkV8",
+    authDomain: "twowei-progresstrack.firebaseapp.com",
+    projectId: "twowei-progresstrack",
+    storageBucket: "twowei-progresstrack.firebasestorage.app",
+    messagingSenderId: "1016966707396",
+    appId: "1:1016966707396:web:1aeb01a954f8c261b7f191",
+    measurementId: "G-DDGZN048K6"
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const db = getFirestore(fbApp);
+
+  // expose to global scope for non-module script below
+  window.__fb = {
+    db, collection, doc, getDoc, getDocs, setDoc, deleteDoc, serverTimestamp, query, orderBy
+  };
+  window.dispatchEvent(new Event('fb-ready'));
+</script>
+<style>
+:root {
+  --brand:#8B1A5C; --brand-light:#B5256F; --brand-dark:#5E1040;
+  --bg:#FAF8FB; --surface:#FFF; --border:#E8DFF0;
+  --text:#1A0A12; --muted:#7A6A72; --radius:10px;
+  --shadow:0 2px 12px rgba(139,26,92,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC','Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.icon{display:inline-block;vertical-align:middle;flex-shrink:0}
+a{color:inherit}
+
+/* ══════════════════════════════════════
+   LOGIN GATE
+══════════════════════════════════════ */
+#gateScreen{
+  position:fixed;inset:0;z-index:1000;background:linear-gradient(135deg,var(--brand-dark),var(--brand) 55%,var(--brand-light));
+  display:flex;align-items:center;justify-content:center;padding:20px}
+#gateScreen.hide{display:none}
+.gate-box{background:#fff;border-radius:16px;padding:36px 32px;width:100%;max-width:360px;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center}
+.gate-box svg{margin-bottom:14px}
+.gate-box h2{font-size:1.2rem;font-weight:800;color:var(--brand-dark);margin-bottom:6px}
+.gate-box p{font-size:.8rem;color:var(--muted);margin-bottom:20px}
+.gate-box input{width:100%;border:1.5px solid var(--border);border-radius:9px;
+  padding:11px 14px;font-size:1rem;text-align:center;letter-spacing:.15em;outline:none;margin-bottom:12px}
+.gate-box input:focus{border-color:var(--brand)}
+.gate-box .btn{width:100%;justify-content:center;padding:10px;font-size:.9rem}
+.gate-err{color:#c62828;font-size:.78rem;margin-bottom:10px;min-height:1.1em}
+
+/* ══════════════════════════════════════
+   LOADING
+══════════════════════════════════════ */
+#loadingOverlay{position:fixed;inset:0;z-index:900;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+#loadingOverlay.hide{display:none}
+.spinner{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--brand);
+  border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loadingOverlay p{color:var(--muted);font-size:.85rem}
+
+/* ══════════════════════════════════════
+   APP SHELL VISIBILITY
+══════════════════════════════════════ */
+#appRoot{display:none}
+#appRoot.show{display:block}
+#listView, #editorView{display:none}
+#listView.active, #editorView.active{display:block}
+
+/* ══════════════════════════════════════
+   LIST VIEW (通告列表首頁)
+══════════════════════════════════════ */
+.list-header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,var(--brand-light) 100%);color:#fff}
+.list-header-inner{max-width:1000px;margin:0 auto;padding:30px 24px 26px}
+.list-header-inner h1{font-size:1.9rem;font-weight:900;letter-spacing:.04em}
+.list-header-inner p{font-size:.85rem;opacity:.75;margin-top:6px}
+
+.list-main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
+.list-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:22px;flex-wrap:wrap}
+.list-toolbar input[type=text]{flex:1;min-width:160px;border:1.5px solid var(--border);
+  border-radius:9px;padding:9px 14px;font-size:.88rem;outline:none;background:#fff}
+.list-toolbar input[type=text]:focus{border-color:var(--brand)}
+
+.notice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.notice-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:18px 20px;cursor:pointer;transition:box-shadow .15s,transform .1s;position:relative;
+  display:flex;flex-direction:column;gap:8px}
+.notice-card:hover{box-shadow:0 8px 28px rgba(139,26,92,.16);transform:translateY(-2px)}
+.notice-card h3{font-size:1.1rem;font-weight:800;color:var(--brand-dark);line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:30px}
+.notice-card .nc-meta{font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:5px}
+.notice-card .nc-stats{display:flex;gap:14px;margin-top:4px;font-size:.74rem;color:var(--muted)}
+.notice-card .nc-stats b{color:var(--brand);font-size:.9rem}
+.notice-card .nc-updated{font-size:.7rem;color:#b3a3ab;margin-top:auto;padding-top:8px;border-top:1px dashed var(--border)}
+.notice-card .nc-menu-btn{position:absolute;top:14px;right:12px;width:26px;height:26px;
+  border-radius:6px;border:none;background:transparent;color:var(--muted);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s}
+.notice-card .nc-menu-btn:hover{background:var(--bg)}
+.nc-menu{position:fixed;z-index:250;background:#fff;border:1px solid var(--border);
+  border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;min-width:140px;display:none}
+.nc-menu.show{display:block}
+.nc-menu button{width:100%;text-align:left;padding:9px 14px;border:none;background:none;
+  font-size:.82rem;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit}
+.nc-menu button:hover{background:var(--bg)}
+.nc-menu button.danger{color:#c62828}
+
+.empty-list{text-align:center;padding:70px 20px;color:var(--muted)}
+.empty-list svg{margin-bottom:14px;opacity:.3}
+
+.fab{position:fixed;right:24px;bottom:24px;width:56px;height:56px;border-radius:50%;
+  background:var(--brand);color:#fff;border:none;box-shadow:0 6px 20px rgba(139,26,92,.4);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s;z-index:50}
+.fab:hover{transform:scale(1.08)}
+
+/* ══════════════════════════════════════
+   BACK BUTTON (editor view)
+══════════════════════════════════════ */
+.back-btn{position:absolute;top:10px;left:10px;display:inline-flex;align-items:center;gap:5px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);
+  color:#fff;border-radius:7px;padding:5px 11px;font-size:.74rem;font-weight:600;
+  cursor:pointer;transition:background .15s;z-index:5}
+.back-btn:hover{background:rgba(255,255,255,.28)}
+
+/* ── Header (editor) ── */
+header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,var(--brand-light) 100%);color:#fff;position:relative}
+.header-inner{max-width:1000px;margin:0 auto;padding:24px 24px 20px;display:flex;align-items:flex-end;gap:32px}
+.header-title h1{
+  font-family:var(--f-title-family,inherit);
+  font-size:var(--f-title-size,2.2rem);
+  font-weight:var(--f-title-weight,900);
+  letter-spacing:.04em;line-height:1.15}
+.header-title p{
+  font-family:var(--f-sub-family,inherit);
+  font-size:var(--f-sub-size,.82rem);
+  font-weight:var(--f-sub-weight,400);
+  opacity:.78;margin-top:4px;letter-spacing:.08em}
+.header-meta{margin-left:auto;text-align:right;line-height:2.2}
+.header-meta-row{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.header-meta-row svg{opacity:.8;flex-shrink:0}
+.header-meta-row.meta-venue{
+  font-family:var(--f-venue-family,inherit);
+  font-size:var(--f-venue-size,1.05rem);
+  font-weight:var(--f-venue-weight,600)}
+.header-meta-row.meta-date{
+  font-family:var(--f-date-family,inherit);
+  font-size:var(--f-date-size,1.05rem);
+  font-weight:var(--f-date-weight,600)}
+
+.header-edit-btn{
+  position:absolute;top:10px;right:10px;
+  display:inline-flex;align-items:center;gap:5px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);
+  color:#fff;border-radius:7px;padding:5px 11px;font-size:.74rem;font-weight:600;
+  cursor:pointer;transition:background .15s;z-index:5}
+.header-edit-btn:hover{background:rgba(255,255,255,.28)}
+
+/* ── Toolbar ── */
+.toolbar{background:var(--brand-dark);border-top:1px solid rgba(255,255,255,.12)}
+.toolbar-inner{max-width:1000px;margin:0 auto;padding:8px 24px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.toolbar-inner select,.toolbar-inner input[type=date]{
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);
+  color:#fff;border-radius:6px;padding:5px 10px;font-size:.82rem;outline:none;cursor:pointer}
+.toolbar-inner select option{background:var(--brand-dark)}
+.toolbar-inner input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1)}
+.btn{display:inline-flex;align-items:center;gap:5px;border:none;border-radius:7px;
+  padding:6px 13px;font-size:.81rem;font-weight:600;cursor:pointer;
+  transition:opacity .15s,transform .1s;white-space:nowrap}
+.btn:hover{opacity:.82;transform:translateY(-1px)}
+.btn-primary{background:#fff;color:var(--brand)}
+.btn-ghost{background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.24)}
+.btn-danger{background:#c62828;color:#fff}
+.btn-sm{padding:4px 10px;font-size:.74rem}
+.btn-warn{background:#e65100;color:#fff}
+.btn[disabled]{opacity:.5;cursor:not-allowed;pointer-events:none}
+
+/* save status indicator */
+.save-status{display:inline-flex;align-items:center;gap:5px;color:#fff;font-size:.74rem;
+  opacity:.8;margin-left:auto;white-space:nowrap}
+.save-status .dot{width:7px;height:7px;border-radius:50%;background:#9ccc65;flex-shrink:0}
+.save-status.saving .dot{background:#ffca28;animation:pulse 1s infinite}
+.save-status.error .dot{background:#ef5350}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Main ── */
+main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
+
+/* ── Legend ── */
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px;
+  padding:11px 16px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border)}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:.74rem;font-weight:600;color:var(--muted)}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ── Day Group ── */
+.day-group{margin-bottom:32px}
+.day-label{display:flex;align-items:baseline;gap:0;margin-bottom:14px;line-height:1}
+.day-label .year-tag{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.04em;margin-right:3px;align-self:flex-start;padding-top:4px}
+.day-label .date-num{font-size:2.2rem;font-weight:900;color:var(--brand);line-height:1}
+.day-label .date-weekday{font-size:.76rem;color:var(--muted);letter-spacing:.1em;font-weight:600;margin-left:6px}
+
+/* ── Timeline ── */
+.timeline{position:relative;padding-left:150px}
+.timeline::before{content:'';position:absolute;left:128px;top:0;bottom:0;width:2px;background:var(--border)}
+.slot{position:relative;margin-bottom:14px;background:var(--surface);
+  border:1px solid var(--border);border-left:4px solid var(--brand);
+  border-radius:var(--radius);padding:14px 16px 12px;box-shadow:var(--shadow);transition:box-shadow .15s}
+.slot:hover{box-shadow:0 4px 20px rgba(139,26,92,.13)}
+
+/* left time column */
+.slot-time{position:absolute;left:-150px;top:0;width:128px;
+  text-align:right;padding-right:18px;padding-top:14px}
+.slot-time .time-range{font-size:1.05rem;font-weight:800;color:var(--brand);line-height:1.3}
+.slot-time .time-range .t-tilde{font-size:.82rem;opacity:.6}
+.slot-time .time-note{font-size:.73rem;color:var(--muted);margin-top:5px;line-height:1.4;font-weight:500}
+
+/* type colours (no dot anymore) */
+.slot[data-type="水電"]{border-left-color:#1AADCE}
+.slot[data-type="水電"] .slot-time .time-range{color:#1AADCE}
+.slot[data-type="圖威"]{border-left-color:#E07B2A}
+.slot[data-type="圖威"] .slot-time .time-range{color:#E07B2A}
+.slot[data-type="文保"]{border-left-color:#EC9A9A}
+.slot[data-type="文保"] .slot-time .time-range{color:#D88A8A}
+.slot[data-type="木工"]{border-left-color:#7B5E3A}
+.slot[data-type="木工"] .slot-time .time-range{color:#7B5E3A}
+.slot[data-type="油漆"]{border-left-color:#8E24AA}
+.slot[data-type="油漆"] .slot-time .time-range{color:#8E24AA}
+.slot[data-type="大圖輸出"]{border-left-color:#0277BD}
+.slot[data-type="大圖輸出"] .slot-time .time-range{color:#0277BD}
+.slot[data-type="貼圖"]{border-left-color:#00897B}
+.slot[data-type="貼圖"] .slot-time .time-range{color:#00897B}
+.slot[data-type="美術"]{border-left-color:#F4511E}
+.slot[data-type="美術"] .slot-time .time-range{color:#F4511E}
+.slot[data-type="多媒體"]{border-left-color:#3949AB}
+.slot[data-type="多媒體"] .slot-time .time-range{color:#3949AB}
+.slot[data-type="清潔"]{border-left-color:#558B2F}
+.slot[data-type="清潔"] .slot-time .time-range{color:#558B2F}
+.slot[data-type="燈光"]{border-left-color:#F9A825}
+.slot[data-type="燈光"] .slot-time .time-range{color:#F9A825}
+.slot[data-type="其他"]{border-left-color:#4A7C6F}
+.slot[data-type="其他"] .slot-time .time-range{color:#4A7C6F}
+
+.slot-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.type-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 8px;
+  border-radius:20px;font-size:.75rem;font-weight:700;color:#fff;letter-spacing:.04em}
+.slot-venue{font-size:.73rem;color:var(--muted);margin-left:auto;display:flex;align-items:center;gap:4px}
+.slot-body{font-size:.88rem;color:#2a1a20;line-height:1.7}
+
+/* ── Assignee pills ── */
+.slot-assignees{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.assignee-pill{display:inline-flex;align-items:center;border-radius:20px;
+  padding:3px 12px;font-size:.74rem;font-weight:700;color:#fff;
+  letter-spacing:.04em;cursor:pointer;transition:filter .15s;user-select:none}
+.assignee-pill:hover{filter:brightness(1.15)}
+
+.slot-actions{margin-top:10px;display:flex;gap:7px}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty svg{margin-bottom:12px;opacity:.3}
+.empty p{font-size:.9rem}
+
+/* ── Colour picker popup ── */
+.cpop{position:fixed;z-index:300;background:#fff;border:1px solid var(--border);
+  border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:10px;
+  display:grid;grid-template-columns:repeat(7,22px);gap:5px}
+.cpop-swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+.cpop-swatch:hover{transform:scale(1.2);border-color:#fff;box-shadow:0 0 0 2px #888}
+
+/* ── Modal ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(30,0,20,.45);
+  z-index:100;align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border-radius:14px;width:100%;max-width:560px;
+  box-shadow:0 12px 48px rgba(139,26,92,.22);overflow:hidden;max-height:92vh;display:flex;flex-direction:column}
+.modal-head{background:linear-gradient(135deg,var(--brand-dark),var(--brand));
+  color:#fff;padding:16px 22px;font-size:1rem;font-weight:700;
+  display:flex;align-items:center;gap:8px;flex-shrink:0}
+.modal-body{padding:20px 22px;overflow-y:auto;flex:1}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);
+  letter-spacing:.07em;margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;border:1.5px solid var(--border);
+  border-radius:8px;padding:8px 12px;font-size:.87rem;font-family:inherit;
+  color:var(--text);outline:none;transition:border-color .15s;background:#fff}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--brand)}
+.field textarea{resize:vertical;min-height:68px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* rich-text toolbar */
+.rte-bar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;
+  padding:6px 8px;background:#f4f0f7;border:1.5px solid var(--border);
+  border-bottom:none;border-radius:8px 8px 0 0}
+.rte-bar select{border:1px solid var(--border);border-radius:5px;
+  padding:2px 6px;font-size:.75rem;background:#fff;cursor:pointer;outline:none}
+.rte-bar button{border:1px solid var(--border);border-radius:5px;background:#fff;
+  width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:.8rem;font-weight:700;transition:background .12s}
+.rte-bar button:hover{background:#e8def0}
+.rte-bar button.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.rte-color-btn{width:26px;height:26px;border:2px solid var(--border);border-radius:5px;
+  cursor:pointer;padding:0;position:relative;overflow:hidden}
+#f_desc{border-radius:0 0 8px 8px;min-height:90px;padding:9px 12px;
+  border:1.5px solid var(--border);width:100%;font-family:inherit;
+  font-size:.87rem;color:var(--text);outline:none;line-height:1.6;resize:vertical}
+#f_desc:focus{border-color:var(--brand)}
+
+.modal-foot{padding:13px 22px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:10px;flex-shrink:0}
+.modal-foot .btn-primary{background:var(--brand);color:#fff}
+.modal-foot .btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border)}
+.modal-foot .btn-ghost:hover{background:var(--bg)}
+
+/* ── Assignee manager modal ── */
+.am-modal{max-width:400px}
+.am-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto}
+.am-row{display:flex;align-items:center;gap:8px}
+.am-pill-prev{border-radius:20px;padding:3px 14px;font-size:.8rem;font-weight:700;color:#fff;min-width:60px;text-align:center}
+.am-color-pick{width:30px;height:30px;border:2px solid var(--border);border-radius:8px;cursor:pointer;padding:0}
+
+/* ── Header settings modal ── */
+.hd-modal{max-width:560px}
+.hd-section{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.hd-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.hd-section-title{font-size:.78rem;font-weight:800;color:var(--brand);
+  letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.hd-row{display:grid;grid-template-columns:1.4fr 1fr .9fr .7fr;gap:8px;align-items:end}
+.hd-row .field{margin-bottom:0}
+.hd-row label{font-size:.7rem}
+
+/* ── New notice modal ── */
+.nn-modal{max-width:440px}
+
+/* export overlay */
+.export-hint{position:fixed;inset:0;z-index:400;background:rgba(30,0,20,.5);
+  display:flex;align-items:center;justify-content:center;display:none}
+.export-hint.show{display:flex}
+.export-box{background:#fff;border-radius:12px;padding:28px 32px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.export-box p{font-size:.9rem;color:var(--muted);margin-top:8px}
+
+@media print{
+  header{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .toolbar,.slot-actions,#addBtn,.rte-bar,.header-edit-btn,.back-btn{display:none!important}
+  .slot{break-inside:avoid}
+}
+@media(max-width:640px){
+  .header-inner{flex-direction:column;gap:10px;padding-top:46px}
+  .header-meta{text-align:left}
+  .back-btn{top:8px;left:8px}
+  .header-edit-btn{top:8px;right:8px}
+
+  /* timeline -> stacked cards on mobile */
+  .timeline{padding-left:0}
+  .timeline::before{display:none}
+  .slot{padding-top:12px}
+  .slot-time{position:static;width:auto;text-align:left;padding:0 0 8px 0;
+    display:flex;align-items:baseline;gap:8px;border-bottom:1px dashed var(--border);margin-bottom:10px}
+  .slot-time .time-note{margin-top:0}
+
+  .field-row{grid-template-columns:1fr}
+  .hd-row{grid-template-columns:1fr 1fr}
+  .notice-grid{grid-template-columns:1fr}
+  .list-toolbar{flex-direction:column;align-items:stretch}
+}
+</style>
+</head>
+<body>
+
+<!-- SVG defs -->
+<svg width="0" height="0" style="position:absolute">
+<defs>
+  <symbol id="ico-pin" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 1.5C5.515 1.5 3.5 3.515 3.5 6c0 3.5 4.5 8.5 4.5 8.5S12.5 9.5 12.5 6c0-2.485-2.015-4.5-4.5-4.5z"/><circle cx="8" cy="6" r="1.5"/>
+  </symbol>
+  <symbol id="ico-cal" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1.5" y="3" width="13" height="12" rx="2"/><path d="M1.5 6.5h13M5 1.5v3M11 1.5v3"/>
+  </symbol>
+  <symbol id="ico-plus" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <path d="M8 2v12M2 8h12"/>
+  </symbol>
+  <symbol id="ico-edit" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11.5 2.5l2 2-8 8-3 1 1-3 8-8z"/><path d="M10 4l2 2"/>
+  </symbol>
+  <symbol id="ico-trash" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 4h12M6 4V2.5h4V4M5 4l.5 9.5h5L11 4"/><path d="M6.5 7v5M9.5 7v5"/>
+  </symbol>
+  <symbol id="ico-print" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 6V2.5h6V6"/><rect x="2" y="6" width="12" height="6" rx="1"/><path d="M5 9.5h6M5 11.5h4"/><rect x="4" y="10" width="8" height="4" rx=".5"/>
+  </symbol>
+  <symbol id="ico-down" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 2v9M5 8l3 3 3-3"/><path d="M2 13h12"/>
+  </symbol>
+  <symbol id="ico-up" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 11V2M5 5l3-3 3 3"/><path d="M2 13h12"/>
+  </symbol>
+  <symbol id="ico-img2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><circle cx="5.5" cy="6" r="1.5"/><path d="M1.5 11.5l3.5-3.5 3 3 2-2 3.5 3.5"/>
+  </symbol>
+  <symbol id="ico-bolt" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 1.5L4 9h4l-1 5.5L14 7h-4L9 1.5z"/>
+  </symbol>
+  <symbol id="ico-shield" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 1.5l5 2v4c0 3-2.3 5.2-5 6.5C5.3 12.7 3 10.5 3 7.5v-4l5-2z"/><path d="M5.5 8l2 2 3-3.5"/>
+  </symbol>
+  <symbol id="ico-hammer" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9.5 2.5l-1 1 3 3 1-1a2.12 2.12 0 00-3-3z"/><path d="M8.5 3.5L3 9l1.5 1.5 5.5-5.5"/><path d="M3 9l1 1 .5.5-2 2.5 1.5 1.5 2.5-2 .5.5 1 1"/>
+  </symbol>
+  <symbol id="ico-paint" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 2h7l2 2-5 5-4-4V2z"/><path d="M5 7l-3 3a1.4 1.4 0 002 2l3-3"/><circle cx="12.5" cy="12.5" r="1.5"/><path d="M9 6l1 1"/>
+  </symbol>
+  <symbol id="ico-print2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1" y="1" width="14" height="10" rx="1.5"/><path d="M4 5h8M4 8h5"/>
+  </symbol>
+  <symbol id="ico-sticker" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1.5" y="1.5" width="13" height="13" rx="2"/><path d="M1.5 10l4-4 2.5 2.5 2-2 4 4"/><path d="M10 1.5v5h4.5"/>
+  </symbol>
+  <symbol id="ico-palette" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 1.5a6.5 6.5 0 100 13 2 2 0 000-4 2 2 0 012-2h2a2.5 2.5 0 000-5A6.5 6.5 0 008 1.5z"/>
+    <circle cx="5" cy="6" r=".8" fill="currentColor" stroke="none"/>
+    <circle cx="8" cy="4" r=".8" fill="currentColor" stroke="none"/>
+    <circle cx="11" cy="6" r=".8" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="ico-media" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M6.5 6.5l4 1.5-4 1.5V6.5z"/>
+  </symbol>
+  <symbol id="ico-clean" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 13h10"/><path d="M5 13V9l-2-4h10l-2 4v4"/><path d="M6 9h4"/>
+  </symbol>
+  <symbol id="ico-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="8" cy="7" r="3"/><path d="M8 1v1.5M8 11v1.5M1 7h1.5M12.5 7H14M3.1 3.1l1 1M11.9 3.1l-1 1M3.1 10.9l1-1M11.9 10.9l-1-1"/>
+    <path d="M6 13h4v1.5H6z"/>
+  </symbol>
+  <symbol id="ico-wrench" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.5 2a3.5 3.5 0 00-3.36 4.5L2 11.5 3 13.5l2 1 4.5-5.14A3.5 3.5 0 1010.5 2z"/><path d="M11 2.5v3h-2"/>
+  </symbol>
+  <symbol id="ico-person" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="8" cy="5" r="2.5"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/>
+  </symbol>
+  <symbol id="ico-clip" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="2" width="8" height="3" rx="1"/><path d="M4 3H3a1 1 0 00-1 1v9a1 1 0 001 1h10a1 1 0 001-1V4a1 1 0 00-1-1h-1"/><path d="M5.5 8h5M5.5 10.5h3"/>
+  </symbol>
+  <symbol id="ico-jpg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1.5" y="2" width="10" height="12" rx="1.5"/><path d="M11.5 2l3 3v9a1.5 1.5 0 01-1.5 1.5"/><path d="M11.5 2v3H14.5"/><path d="M4 9.5a1 1 0 001 1 1 1 0 001-1V8H4v1.5z"/><path d="M8 8v2.5M8 8h1.5a1 1 0 010 2H8"/>
+  </symbol>
+  <symbol id="ico-lock" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V4.5a3 3 0 016 0V7"/>
+  </symbol>
+  <symbol id="ico-back" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 13L5 8l5-5"/>
+  </symbol>
+  <symbol id="ico-list" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="3" width="12" height="3" rx="1"/><rect x="2" y="10" width="12" height="3" rx="1"/>
+  </symbol>
+  <symbol id="ico-folder" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1.5 4a1 1 0 011-1h3.5l1.5 1.5H13.5a1 1 0 011 1V12a1 1 0 01-1 1h-11a1 1 0 01-1-1V4z"/>
+  </symbol>
+  <symbol id="ico-dots" viewBox="0 0 16 16" fill="currentColor">
+    <circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/>
+  </symbol>
+  <symbol id="ico-copy" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5.5" y="5.5" width="9" height="9" rx="1.5"/><path d="M3.5 10.5h-1a1 1 0 01-1-1v-7a1 1 0 011-1h7a1 1 0 011 1v1"/>
+  </symbol>
+</defs>
+</svg>
+
+<!-- ══════════════════════════════════════
+     LOGIN GATE
+══════════════════════════════════════ -->
+<div id="gateScreen">
+  <div class="gate-box">
+    <svg width="40" height="40" viewBox="0 0 16 16" fill="none" stroke="#8B1A5C" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V4.5a3 3 0 016 0V7"/>
+    </svg>
+    <h2>施工安排通告系統</h2>
+    <p>請輸入通行密碼以繼續</p>
+    <div class="gate-err" id="gateErr"></div>
+    <input type="password" id="gatePw" placeholder="密碼" autocomplete="off">
+    <button class="btn btn-primary" style="background:var(--brand);color:#fff" onclick="tryLogin()">登入</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     LOADING
+══════════════════════════════════════ -->
+<div id="loadingOverlay" class="hide">
+  <div class="spinner"></div>
+  <p>載入中…</p>
+</div>
+
+<!-- ══════════════════════════════════════
+     APP ROOT
+══════════════════════════════════════ -->
+<div id="appRoot">
+
+  <!-- ── LIST VIEW ── -->
+  <div id="listView" class="active">
+    <div class="list-header">
+      <div class="list-header-inner">
+        <h1>施工安排通告系統</h1>
+        <p>所有展覽 / 工程的卸展通告，集中管理</p>
+      </div>
+    </div>
+    <div class="list-main">
+      <div class="list-toolbar">
+        <input type="text" id="searchNotice" placeholder="搜尋通告名稱或地點…" oninput="renderNoticeList()">
+      </div>
+      <div class="notice-grid" id="noticeGrid"></div>
+    </div>
+    <button class="fab" onclick="openNewNoticeModal()" title="新增通告">
+      <svg width="22" height="22"><use href="#ico-plus"/></svg>
+    </button>
+  </div>
+
+  <!-- ── EDITOR VIEW ── -->
+  <div id="editorView">
+    <header>
+      <button class="back-btn" onclick="goToList()">
+        <svg class="icon" width="13" height="13"><use href="#ico-back"/></svg> 通告列表
+      </button>
+      <button class="header-edit-btn" onclick="openHeaderSettings()">
+        <svg class="icon" width="13" height="13"><use href="#ico-edit"/></svg> 編輯標題
+      </button>
+      <div class="header-inner">
+        <div class="header-title">
+          <h1 id="projectName">韓內科移展</h1>
+          <p id="projectSub">施工安排通告系統</p>
+        </div>
+        <div class="header-meta">
+          <div class="header-meta-row meta-venue">
+            <svg class="icon" width="16" height="16"><use href="#ico-pin"/></svg>
+            <span id="venueDisplay">台南市立圖書館新總圖 一樓</span>
+          </div>
+          <div class="header-meta-row meta-date">
+            <svg class="icon" width="16" height="16"><use href="#ico-cal"/></svg>
+            <span id="dateRangeDisplay">2026/3/30</span>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="toolbar-inner">
+          <input type="date" id="filterDate" title="篩選日期">
+          <select id="filterType">
+            <option value="">全部工種</option>
+            <option value="水電">水電</option>
+            <option value="圖威">圖威</option>
+            <option value="文保">文保</option>
+            <option value="木工">木工</option>
+            <option value="油漆">油漆</option>
+            <option value="大圖輸出">大圖輸出</option>
+            <option value="貼圖">貼圖</option>
+            <option value="美術">美術</option>
+            <option value="多媒體">多媒體</option>
+            <option value="清潔">清潔</option>
+            <option value="燈光">燈光</option>
+            <option value="其他">其他</option>
+          </select>
+          <button class="btn btn-primary" id="addBtn" onclick="openModal()">
+            <svg class="icon" width="13" height="13"><use href="#ico-plus"/></svg> 新增工作
+          </button>
+          <button class="btn btn-ghost" onclick="openAssigneeManager()">
+            <svg class="icon" width="14" height="14"><use href="#ico-person"/></svg> 人員顏色
+          </button>
+          <button class="btn btn-ghost" onclick="window.print()">
+            <svg class="icon" width="14" height="14"><use href="#ico-print"/></svg> 列印
+          </button>
+          <button class="btn btn-ghost" onclick="exportJPG()">
+            <svg class="icon" width="14" height="14"><use href="#ico-jpg"/></svg> 匯出JPG
+          </button>
+          <span class="save-status" id="saveStatus"><span class="dot"></span><span id="saveStatusText">已儲存</span></span>
+        </div>
+      </div>
+    </header>
+
+    <main id="mainContent"></main>
+  </div>
+</div>
+
+<!-- ── New Notice Modal ── -->
+<div class="modal-bg" id="nnBg" onclick="if(event.target===this)closeNewNoticeModal()">
+  <div class="modal nn-modal">
+    <div class="modal-head">
+      <svg class="icon" width="16" height="16"><use href="#ico-plus"/></svg>
+      <span>新增通告</span>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>通告名稱</label>
+        <input type="text" id="nn_title" placeholder="例：陳澄波展 卸展工作期程">
+      </div>
+      <div class="field">
+        <label>地點</label>
+        <input type="text" id="nn_venue" placeholder="例：國立臺灣歷史博物館 4F第二特展室">
+      </div>
+      <div class="field">
+        <label>時間（顯示用文字）</label>
+        <input type="text" id="nn_date" placeholder="例：2026/3/30 或 3/2～3/9">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeNewNoticeModal()">取消</button>
+      <button class="btn btn-primary" style="background:var(--brand);color:#fff" onclick="createNewNotice()">建立</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add/Edit Slot Modal ── -->
+<div class="modal-bg" id="modalBg" onclick="bgClick(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <svg class="icon" width="16" height="16"><use href="#ico-clip"/></svg>
+      <span id="modalTitle">新增工作安排</span>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field">
+          <label>日期</label>
+          <input type="date" id="f_date">
+        </div>
+        <div class="field">
+          <label>工種</label>
+          <select id="f_type">
+            <option value="水電">水電</option>
+            <option value="圖威">圖威</option>
+            <option value="文保">文保</option>
+            <option value="木工">木工</option>
+            <option value="油漆">油漆</option>
+            <option value="大圖輸出">大圖輸出</option>
+            <option value="貼圖">貼圖</option>
+            <option value="美術">美術</option>
+            <option value="多媒體">多媒體</option>
+            <option value="清潔">清潔</option>
+            <option value="燈光">燈光</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>開始時間</label>
+          <input type="time" id="f_start">
+        </div>
+        <div class="field">
+          <label>結束時間</label>
+          <input type="time" id="f_end">
+        </div>
+      </div>
+      <div class="field">
+        <label>時間備注（顯示於時間欄下方）</label>
+        <input type="text" id="f_timenote" placeholder="例：館休日、暫定下午進場">
+      </div>
+      <div class="field">
+        <label>工作內容</label>
+        <div class="rte-bar" id="rteBar">
+          <select id="rte-size" title="字級" onchange="rteExec('fontSize',this.value);this.value=''">
+            <option value="">字級</option>
+            <option value="1">極小</option>
+            <option value="2">小</option>
+            <option value="3">正常</option>
+            <option value="4">大</option>
+            <option value="5">更大</option>
+            <option value="6">標題</option>
+          </select>
+          <button title="粗體" onclick="rteExec('bold')" id="rte-b"><b>B</b></button>
+          <button title="斜體" onclick="rteExec('italic')" id="rte-i"><i>I</i></button>
+          <button title="底線" onclick="rteExec('underline')" id="rte-u" style="text-decoration:underline">U</button>
+          <button title="刪除線" onclick="rteExec('strikeThrough')" id="rte-s" style="text-decoration:line-through">S</button>
+          <button title="無序列表" onclick="rteExec('insertUnorderedList')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" viewBox="0 0 14 14">
+              <circle cx="2" cy="4" r="1" fill="currentColor" stroke="none"/>
+              <circle cx="2" cy="8" r="1" fill="currentColor" stroke="none"/>
+              <circle cx="2" cy="12" r="1" fill="currentColor" stroke="none"/>
+              <path d="M5 4h8M5 8h8M5 12h8"/>
+            </svg>
+          </button>
+          <button title="有序列表" onclick="rteExec('insertOrderedList')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" viewBox="0 0 14 14">
+              <path d="M1 2h2M2 2v3M1 5h2M5 3h8M5 8h8M5 13h8"/>
+              <path d="M1 9.5c.5-.8 2-.5 2 .5s-2 2-2 3h2"/>
+            </svg>
+          </button>
+          <div style="position:relative;display:inline-flex;align-items:center">
+            <button class="rte-color-btn" id="rteFgBtn" title="文字顏色"
+              style="background:linear-gradient(135deg,#e53935,#1e88e5,#43a047)"
+              onclick="toggleColorPop('fg')"></button>
+          </div>
+          <div style="position:relative;display:inline-flex;align-items:center">
+            <button class="rte-color-btn" id="rteBgBtn" title="螢光標記"
+              style="background:linear-gradient(135deg,#fff176,#b3e5fc,#c8e6c9)"
+              onclick="toggleColorPop('bg')"></button>
+          </div>
+          <button title="清除格式" onclick="rteExec('removeFormat')" style="font-size:.7rem;width:auto;padding:0 6px">清除</button>
+        </div>
+        <div id="f_desc" contenteditable="true" spellcheck="false"
+          style="border:1.5px solid var(--border);border-radius:0 0 8px 8px;
+          min-height:90px;padding:9px 12px;font-size:.87rem;line-height:1.65;
+          outline:none;background:#fff;color:var(--text)"
+          onfocus="this.style.borderColor='var(--brand)'"
+          onblur="this.style.borderColor='var(--border)'"></div>
+      </div>
+      <div class="field">
+        <label>負責人員／單位（逗號分隔）</label>
+        <input type="text" id="f_assignees" placeholder="郁通, 珊君">
+      </div>
+      <div class="field" id="f_assignee_colors_wrap" style="display:none">
+        <label>人員顏色</label>
+        <div id="f_assignee_colors" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+      <div class="field">
+        <label>地點／備註</label>
+        <input type="text" id="f_venue" placeholder="一樓展場">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" style="background:var(--brand);color:#fff" onclick="saveSlot()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Assignee Manager Modal ── -->
+<div class="modal-bg" id="amBg" onclick="if(event.target===this)closeAM()">
+  <div class="modal am-modal">
+    <div class="modal-head">
+      <svg class="icon" width="16" height="16"><use href="#ico-person"/></svg>
+      <span>人員／單位顏色管理</span>
+    </div>
+    <div class="modal-body">
+      <div class="am-list" id="amList"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" style="background:var(--brand);color:#fff" onclick="closeAM()">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Header Settings Modal ── -->
+<div class="modal-bg" id="hdBg" onclick="if(event.target===this)closeHeaderSettings()">
+  <div class="modal hd-modal">
+    <div class="modal-head">
+      <svg class="icon" width="16" height="16"><use href="#ico-edit"/></svg>
+      <span>編輯標題區</span>
+    </div>
+    <div class="modal-body">
+
+      <div class="hd-section">
+        <div class="hd-section-title">主標題</div>
+        <div class="field"><input type="text" id="hd_title" placeholder="例：韓內科移展"></div>
+        <div class="hd-row">
+          <div class="field">
+            <label>字體</label>
+            <select id="hd_title_font">
+              <option value="">系統預設</option>
+              <option value="'Noto Sans TC',sans-serif">Noto Sans TC（黑體）</option>
+              <option value="'Noto Serif TC',serif">Noto Serif TC（明體）</option>
+              <option value="'Microsoft JhengHei',sans-serif">微軟正黑體</option>
+              <option value="'Microsoft Yahei',sans-serif">微軟雅黑</option>
+              <option value="cursive">手寫風</option>
+              <option value="serif">襯線體 Serif</option>
+              <option value="sans-serif">無襯線 Sans</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>字級 (px)</label>
+            <input type="number" id="hd_title_size" min="12" max="72" value="35">
+          </div>
+          <div class="field">
+            <label>粗細</label>
+            <select id="hd_title_weight">
+              <option value="400">標準</option>
+              <option value="600">中粗</option>
+              <option value="700">粗體</option>
+              <option value="900" selected>特粗</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="hd-section">
+        <div class="hd-section-title">副標題</div>
+        <div class="field"><input type="text" id="hd_sub" placeholder="例：施工安排通告系統"></div>
+        <div class="hd-row">
+          <div class="field">
+            <label>字體</label>
+            <select id="hd_sub_font">
+              <option value="">系統預設</option>
+              <option value="'Noto Sans TC',sans-serif">Noto Sans TC（黑體）</option>
+              <option value="'Noto Serif TC',serif">Noto Serif TC（明體）</option>
+              <option value="'Microsoft JhengHei',sans-serif">微軟正黑體</option>
+              <option value="cursive">手寫風</option>
+              <option value="serif">襯線體 Serif</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>字級 (px)</label>
+            <input type="number" id="hd_sub_size" min="10" max="32" value="13">
+          </div>
+          <div class="field">
+            <label>粗細</label>
+            <select id="hd_sub_weight">
+              <option value="400" selected>標準</option>
+              <option value="600">中粗</option>
+              <option value="700">粗體</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="hd-section">
+        <div class="hd-section-title">地點</div>
+        <div class="field"><input type="text" id="hd_venue" placeholder="例：台南市立圖書館新總圖 一樓"></div>
+        <div class="hd-row">
+          <div class="field">
+            <label>字體</label>
+            <select id="hd_venue_font">
+              <option value="">系統預設</option>
+              <option value="'Noto Sans TC',sans-serif">Noto Sans TC（黑體）</option>
+              <option value="'Noto Serif TC',serif">Noto Serif TC（明體）</option>
+              <option value="'Microsoft JhengHei',sans-serif">微軟正黑體</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>字級 (px)</label>
+            <input type="number" id="hd_venue_size" min="10" max="36" value="17">
+          </div>
+          <div class="field">
+            <label>粗細</label>
+            <select id="hd_venue_weight">
+              <option value="400">標準</option>
+              <option value="600" selected>中粗</option>
+              <option value="700">粗體</option>
+              <option value="900">特粗</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="hd-section">
+        <div class="hd-section-title">時間</div>
+        <div class="field"><input type="text" id="hd_date" placeholder="例：2026/3/30"></div>
+        <div class="hd-row">
+          <div class="field">
+            <label>字體</label>
+            <select id="hd_date_font">
+              <option value="">系統預設</option>
+              <option value="'Noto Sans TC',sans-serif">Noto Sans TC（黑體）</option>
+              <option value="'Noto Serif TC',serif">Noto Serif TC（明體）</option>
+              <option value="'Microsoft JhengHei',sans-serif">微軟正黑體</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>字級 (px)</label>
+            <input type="number" id="hd_date_size" min="10" max="36" value="17">
+          </div>
+          <div class="field">
+            <label>粗細</label>
+            <select id="hd_date_weight">
+              <option value="400">標準</option>
+              <option value="600" selected>中粗</option>
+              <option value="700">粗體</option>
+              <option value="900">特粗</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeHeaderSettings()">取消</button>
+      <button class="btn btn-primary" style="background:var(--brand);color:#fff" onclick="saveHeaderSettings()">套用</button>
+    </div>
+  </div>
+</div>
+
+<!-- colour picker popup (shared) -->
+<div class="cpop" id="cpop" style="display:none"></div>
+
+<!-- card context menu -->
+<div class="nc-menu" id="ncMenu"></div>
+
+<!-- export hint -->
+<div class="export-hint" id="exportHint">
+  <div class="export-box">
+    <svg width="36" height="36" fill="none" stroke="#8B1A5C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 36 36">
+      <circle cx="18" cy="18" r="14"/><path d="M18 10v10M13 16l5 5 5-5"/>
+    </svg>
+    <p>正在產生 JPG，請稍候…</p>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   AUTH GATE
+══════════════════════════════════════ */
+const PASSWORD = 'twowei2026'; // 共用密碼，可自行更改
+function tryLogin(){
+  const v = document.getElementById('gatePw').value;
+  if(v === PASSWORD){
+    sessionStorage.setItem('cs_auth','1');
+    document.getElementById('gateScreen').classList.add('hide');
+    bootApp();
+  }else{
+    document.getElementById('gateErr').textContent = '密碼錯誤，請再試一次';
+  }
+}
+document.getElementById('gatePw').addEventListener('keydown', e=>{
+  if(e.key==='Enter') tryLogin();
+});
+function checkAuth(){
+  if(sessionStorage.getItem('cs_auth')==='1'){
+    document.getElementById('gateScreen').classList.add('hide');
+    return true;
+  }
+  return false;
+}
+
+/* ══════════════════════════════════════
+   TYPE CONFIG
+══════════════════════════════════════ */
+const TYPE_CFG = {
+  '水電':  { color:'#1AADCE', ico:'ico-bolt'   },
+  '圖威':  { color:'#E07B2A', ico:'ico-img2'   },
+  '文保':  { color:'#EC9A9A', ico:'ico-shield' },
+  '木工':  { color:'#7B5E3A', ico:'ico-hammer' },
+  '油漆':  { color:'#8E24AA', ico:'ico-paint'  },
+  '大圖輸出':{ color:'#0277BD', ico:'ico-print2' },
+  '貼圖':  { color:'#00897B', ico:'ico-sticker'},
+  '美術':  { color:'#F4511E', ico:'ico-palette'},
+  '多媒體':{ color:'#3949AB', ico:'ico-media'  },
+  '清潔':  { color:'#558B2F', ico:'ico-clean'  },
+  '燈光':  { color:'#F9A825', ico:'ico-light'  },
+  '其他':  { color:'#4A7C6F', ico:'ico-wrench' },
+};
+
+/* ══════════════════════════════════════
+   ASSIGNEE COLOURS (per-notice)
+══════════════════════════════════════ */
+const PALETTE = [
+  '#8B1A5C','#1AADCE','#E07B2A','#C62828',
+  '#7B5E3A','#4A7C6F','#6A3B8B','#2E7D32',
+  '#00695C','#1565C0','#AD1457','#F57F17',
+  '#4E342E','#37474F','#0277BD','#558B2F',
+];
+let nameColorMap = {};
+let paletteIdx = 0;
+function assigneeColor(name){
+  if(!nameColorMap[name]){
+    nameColorMap[name]=PALETTE[paletteIdx%PALETTE.length];
+    paletteIdx++;
+  }
+  return nameColorMap[name];
+}
+function seedColors(arr){
+  const seen=new Set();
+  arr.forEach(s=>(s.assignees||[]).forEach(a=>{if(!seen.has(a)){seen.add(a);assigneeColor(a);}}));
+}
+
+/* ══════════════════════════════════════
+   FIRESTORE HELPERS
+══════════════════════════════════════ */
+let FB = null; // populated once firebase module is ready
+const NOTICES_COLLECTION = 'construction_notices';
+
+function waitForFirebase(){
+  return new Promise(resolve=>{
+    if(window.__fb){ FB = window.__fb; resolve(); return; }
+    window.addEventListener('fb-ready', ()=>{ FB = window.__fb; resolve(); }, {once:true});
+  });
+}
+
+async function fsListNotices(){
+  const colRef = FB.collection(FB.db, NOTICES_COLLECTION);
+  const snap = await FB.getDocs(colRef);
+  const list = [];
+  snap.forEach(d=> list.push({ id:d.id, ...d.data() }));
+  list.sort((a,b)=>{
+    const ta = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
+    const tb = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
+    return tb - ta;
+  });
+  return list;
+}
+async function fsGetNotice(id){
+  const ref = FB.doc(FB.db, NOTICES_COLLECTION, id);
+  const snap = await FB.getDoc(ref);
+  return snap.exists() ? { id:snap.id, ...snap.data() } : null;
+}
+async function fsSaveNotice(id, payload){
+  const ref = FB.doc(FB.db, NOTICES_COLLECTION, id);
+  await FB.setDoc(ref, { ...payload, updatedAt: FB.serverTimestamp() }, { merge:true });
+}
+async function fsDeleteNotice(id){
+  const ref = FB.doc(FB.db, NOTICES_COLLECTION, id);
+  await FB.deleteDoc(ref);
+}
+
+function genId(){
+  return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+
+/* ══════════════════════════════════════
+   APP STATE
+══════════════════════════════════════ */
+let noticesCache = [];     // list view cache
+let currentNoticeId = null;
+let data = [];              // slots of current notice
+let nextId = 1;
+let editingId = null;
+let headerCfg = null;
+
+const HD_DEFAULTS = {
+  title:'新通告', titleFont:'', titleSize:35, titleWeight:900,
+  sub:'施工安排通告系統', subFont:'', subSize:13, subWeight:400,
+  venue:'', venueFont:'', venueSize:17, venueWeight:600,
+  date:'', dateFont:'', dateSize:17, dateWeight:600,
+};
+
+/* ══════════════════════════════════════
+   BOOT
+══════════════════════════════════════ */
+async function bootApp(){
+  document.getElementById('loadingOverlay').classList.remove('hide');
+  await waitForFirebase();
+  document.getElementById('appRoot').classList.add('show');
+  document.getElementById('loadingOverlay').classList.add('hide');
+  await goToList();
+}
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  if(checkAuth()) bootApp();
+});
+
+/* ══════════════════════════════════════
+   LIST VIEW
+══════════════════════════════════════ */
+async function goToList(){
+  currentNoticeId = null;
+  document.getElementById('editorView').classList.remove('active');
+  document.getElementById('listView').classList.add('active');
+  document.getElementById('loadingOverlay').classList.remove('hide');
+  try{
+    noticesCache = await fsListNotices();
+  }catch(e){
+    console.error(e);
+    alert('讀取通告列表失敗，請檢查網路連線');
+  }
+  document.getElementById('loadingOverlay').classList.add('hide');
+  renderNoticeList();
+}
+
+function fmtUpdated(ts){
+  if(!ts || !ts.toDate) return '尚未儲存';
+  const d = ts.toDate();
+  const pad = n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())} 更新`;
+}
+
+function renderNoticeList(){
+  const grid = document.getElementById('noticeGrid');
+  const q = (document.getElementById('searchNotice').value || '').trim().toLowerCase();
+  let list = noticesCache;
+  if(q){
+    list = list.filter(n =>
+      (n.headerCfg?.title||'').toLowerCase().includes(q) ||
+      (n.headerCfg?.venue||'').toLowerCase().includes(q)
+    );
+  }
+  if(!list.length){
+    grid.innerHTML = `<div class="empty-list" style="grid-column:1/-1">
+      <svg width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 16 16">
+        <use href="#ico-folder"/>
+      </svg>
+      <p>${q? '找不到符合的通告' : '尚未建立任何通告，點選右下角「＋」開始'}</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = list.map(n=>{
+    const title = n.headerCfg?.title || '未命名通告';
+    const venue = n.headerCfg?.venue || '';
+    const dateText = n.headerCfg?.date || '';
+    const count = (n.data||[]).length;
+    return `<div class="notice-card" onclick="openNotice('${n.id}')">
+      <h3>${escapeHtml(title)}</h3>
+      ${venue? `<div class="nc-meta">${svgIcon('ico-pin',12)} ${escapeHtml(venue)}</div>`:''}
+      ${dateText? `<div class="nc-meta">${svgIcon('ico-cal',12)} ${escapeHtml(dateText)}</div>`:''}
+      <div class="nc-stats"><span><b>${count}</b> 筆工作安排</span></div>
+      <div class="nc-updated">${fmtUpdated(n.updatedAt)}</div>
+      <button class="nc-menu-btn" onclick="event.stopPropagation();openNcMenu(event,'${n.id}')">
+        ${svgIcon('ico-dots',15)}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s){
+  const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML;
+}
+
+function openNcMenu(e, id){
+  const menu = document.getElementById('ncMenu');
+  menu.innerHTML = `
+    <button onclick="duplicateNotice('${id}')">${svgIcon('ico-copy',14)} 複製通告</button>
+    <button class="danger" onclick="confirmDeleteNotice('${id}')">${svgIcon('ico-trash',14)} 刪除通告</button>
+  `;
+  const r = e.currentTarget.getBoundingClientRect();
+  menu.style.top = (r.bottom+4+window.scrollY)+'px';
+  menu.style.left = Math.min(r.left-110, window.innerWidth-160)+'px';
+  menu.classList.add('show');
+}
+document.addEventListener('click', e=>{
+  const menu = document.getElementById('ncMenu');
+  if(menu.classList.contains('show') && !menu.contains(e.target) && !e.target.closest('.nc-menu-btn')){
+    menu.classList.remove('show');
+  }
+});
+
+async function duplicateNotice(id){
+  document.getElementById('ncMenu').classList.remove('show');
+  document.getElementById('loadingOverlay').classList.remove('hide');
+  try{
+    const src = await fsGetNotice(id);
+    if(!src){ alert('找不到原始通告'); return; }
+    const newId = genId();
+    const cloneHeader = { ...(src.headerCfg||HD_DEFAULTS), title: (src.headerCfg?.title||'未命名') + '（複製）' };
+    await fsSaveNotice(newId, {
+      headerCfg: cloneHeader,
+      data: src.data||[],
+      nextId: src.nextId||1,
+      nameColorMap: src.nameColorMap||{},
+      paletteIdx: src.paletteIdx||0,
+      createdAt: FB.serverTimestamp(),
+    });
+    noticesCache = await fsListNotices();
+  }catch(e){ console.error(e); alert('複製失敗'); }
+  document.getElementById('loadingOverlay').classList.add('hide');
+  renderNoticeList();
+}
+
+function confirmDeleteNotice(id){
+  document.getElementById('ncMenu').classList.remove('show');
+  const n = noticesCache.find(x=>x.id===id);
+  const title = n?.headerCfg?.title || '此通告';
+  if(!confirm(`確定要刪除「${title}」嗎？此動作無法復原。`)) return;
+  deleteNoticeNow(id);
+}
+async function deleteNoticeNow(id){
+  document.getElementById('loadingOverlay').classList.remove('hide');
+  try{
+    await fsDeleteNotice(id);
+    noticesCache = noticesCache.filter(x=>x.id!==id);
+  }catch(e){ console.error(e); alert('刪除失敗'); }
+  document.getElementById('loadingOverlay').classList.add('hide');
+  renderNoticeList();
+}
+
+/* ── New notice modal ── */
+function openNewNoticeModal(){
+  document.getElementById('nn_title').value='';
+  document.getElementById('nn_venue').value='';
+  document.getElementById('nn_date').value='';
+  document.getElementById('nnBg').classList.add('open');
+}
+function closeNewNoticeModal(){
+  document.getElementById('nnBg').classList.remove('open');
+}
+async function createNewNotice(){
+  const title = document.getElementById('nn_title').value.trim();
+  if(!title){ alert('請輸入通告名稱'); return; }
+  const venue = document.getElementById('nn_venue').value.trim();
+  const dateText = document.getElementById('nn_date').value.trim();
+  const id = genId();
+  const hc = { ...HD_DEFAULTS, title, venue, date: dateText };
+  document.getElementById('loadingOverlay').classList.remove('hide');
+  try{
+    await fsSaveNotice(id, {
+      headerCfg: hc, data: [], nextId: 1, nameColorMap: {}, paletteIdx: 0,
+      createdAt: FB.serverTimestamp(),
+    });
+  }catch(e){ console.error(e); alert('建立失敗，請檢查網路連線'); document.getElementById('loadingOverlay').classList.add('hide'); return; }
+  closeNewNoticeModal();
+  await openNotice(id);
+}
+
+/* ══════════════════════════════════════
+   OPEN / SAVE NOTICE (editor)
+══════════════════════════════════════ */
+async function openNotice(id){
+  document.getElementById('ncMenu')?.classList.remove('show');
+  document.getElementById('loadingOverlay').classList.remove('hide');
+  let notice;
+  try{
+    notice = await fsGetNotice(id);
+  }catch(e){ console.error(e); alert('讀取失敗'); document.getElementById('loadingOverlay').classList.add('hide'); return; }
+  if(!notice){ alert('找不到此通告'); document.getElementById('loadingOverlay').classList.add('hide'); await goToList(); return; }
+
+  currentNoticeId = id;
+  data = notice.data || [];
+  nextId = notice.nextId || (data.reduce((m,s)=>Math.max(m,s.id||0),0)+1);
+  nameColorMap = notice.nameColorMap || {};
+  paletteIdx = notice.paletteIdx || 0;
+  headerCfg = Object.assign({}, HD_DEFAULTS, notice.headerCfg||{});
+  seedColors(data);
+
+  document.getElementById('loadingOverlay').classList.add('hide');
+  document.getElementById('listView').classList.remove('active');
+  document.getElementById('editorView').classList.add('active');
+
+  applyHeaderCfg();
+  document.getElementById('filterDate').value='';
+  document.getElementById('filterType').value='';
+  render();
+  setSaveStatus('saved');
+}
+
+let saveTimer = null;
+function scheduleSave(){
+  setSaveStatus('saving');
+  if(saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSaveNotice, 600);
+}
+async function doSaveNotice(){
+  if(!currentNoticeId) return;
+  try{
+    await fsSaveNotice(currentNoticeId, {
+      headerCfg, data, nextId, nameColorMap, paletteIdx,
+    });
+    setSaveStatus('saved');
+  }catch(e){
+    console.error(e);
+    setSaveStatus('error');
+  }
+}
+function setSaveStatus(state){
+  const el = document.getElementById('saveStatus');
+  const txt = document.getElementById('saveStatusText');
+  el.classList.remove('saving','error');
+  if(state==='saving'){ el.classList.add('saving'); txt.textContent='儲存中…'; }
+  else if(state==='error'){ el.classList.add('error'); txt.textContent='儲存失敗'; }
+  else { txt.textContent='已儲存'; }
+}
+
+/* ══════════════════════════════════════
+   SVG HELPER
+══════════════════════════════════════ */
+function svgIcon(id,size=14){
+  return `<svg class="icon" width="${size}" height="${size}"><use href="#${id}"/></svg>`;
+}
+
+/* ══════════════════════════════════════
+   RENDER (editor slots)
+══════════════════════════════════════ */
+function render(){
+  const fd=document.getElementById('filterDate').value;
+  const ft=document.getElementById('filterType').value;
+  let filtered=data.filter(s=>(!fd||s.date===fd)&&(!ft||s.type===ft));
+  const groups={};
+  filtered.forEach(s=>{(groups[s.date]=groups[s.date]||[]).push(s);});
+  const main=document.getElementById('mainContent');
+  if(!Object.keys(groups).length){
+    main.innerHTML=`<div class="empty">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2"
+        stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 48 48">
+        <rect x="6" y="10" width="36" height="32" rx="3"/>
+        <path d="M6 18h36M16 6v8M32 6v8M14 26h20M14 32h14"/>
+      </svg>
+      <p>目前沒有工作安排。點選「新增工作」開始建立。</p>
+    </div>`;return;
+  }
+
+  const legendHTML=Object.entries(TYPE_CFG).map(([k,v])=>
+    `<span class="legend-item"><span class="legend-dot" style="background:${v.color}"></span>${svgIcon(v.ico,12)} ${k}</span>`
+  ).join('');
+  let html=`<div class="legend">${legendHTML}</div>`;
+
+  const WD=['日','一','二','三','四','五','六'];
+  Object.keys(groups).sort().forEach(dk=>{
+    const slots=groups[dk].sort((a,b)=>a.start.localeCompare(b.start));
+    const d=new Date(dk+'T00:00:00');
+    const yr=String(d.getFullYear()).slice(2);
+    const mmdd=`${d.getMonth()+1}/${d.getDate()}`;
+    const wd=`（${WD[d.getDay()]}）`;
+
+    html+=`<div class="day-group">
+      <div class="day-label">
+        <span class="year-tag">'${yr}</span>
+        <span class="date-num">${mmdd}</span>
+        <span class="date-weekday">${wd}</span>
+      </div>
+      <div class="timeline">`;
+
+    slots.forEach(s=>{
+      const cfg=TYPE_CFG[s.type]||TYPE_CFG['其他'];
+      const pills=(s.assignees||[]).map(a=>
+        `<span class="assignee-pill" style="background:${assigneeColor(a)}"
+          onclick="quickColorPill(event,'${escAttr(a)}')">${escapeHtml(a)}</span>`
+      ).join('');
+      const venueHTML=s.venue?`<span class="slot-venue">${svgIcon('ico-pin',11)} ${escapeHtml(s.venue)}</span>`:'';
+      const timeNoteHTML=s.timeNote?`<div class="time-note">${escapeHtml(s.timeNote)}</div>`:'';
+      const timeLabel=s.end?`${s.start}<span class="t-tilde"> ~ </span>${s.end}`:s.start;
+
+      html+=`<div class="slot" data-type="${s.type}" data-id="${s.id}">
+        <div class="slot-time">
+          <div class="time-range">${timeLabel}</div>
+          ${timeNoteHTML}
+        </div>
+        <div class="slot-header">
+          <span class="type-badge" style="background:${cfg.color}">${svgIcon(cfg.ico,13)} ${s.type}</span>
+          ${venueHTML}
+        </div>
+        <div class="slot-body">${s.desc}</div>
+        <div class="slot-assignees">${pills}</div>
+        <div class="slot-actions">
+          <button class="btn btn-ghost btn-sm" onclick="editSlot(${s.id})"
+            style="color:var(--brand);border-color:var(--border)">
+            ${svgIcon('ico-edit',12)} 編輯
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSlot(${s.id})">
+            ${svgIcon('ico-trash',12)} 刪除
+          </button>
+        </div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  });
+  main.innerHTML=html;
+}
+function escAttr(s){ return (s||'').replace(/'/g,"\\'"); }
+
+/* ══════════════════════════════════════
+   SLOT MODAL
+══════════════════════════════════════ */
+function openModal(){
+  editingId=null;
+  document.getElementById('modalTitle').textContent='新增工作安排';
+  document.getElementById('f_date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('f_type').value='水電';
+  document.getElementById('f_start').value='08:00';
+  document.getElementById('f_end').value='';
+  document.getElementById('f_timenote').value='';
+  document.getElementById('f_desc').innerHTML='';
+  document.getElementById('f_assignees').value='';
+  document.getElementById('f_venue').value=headerCfg?.venue||'';
+  renderAssigneeColorPickers([]);
+  document.getElementById('modalBg').classList.add('open');
+}
+function editSlot(id){
+  const s=data.find(x=>x.id===id);if(!s)return;
+  editingId=id;
+  document.getElementById('modalTitle').textContent='編輯工作安排';
+  document.getElementById('f_date').value=s.date;
+  document.getElementById('f_type').value=s.type;
+  document.getElementById('f_start').value=s.start;
+  document.getElementById('f_end').value=s.end||'';
+  document.getElementById('f_timenote').value=s.timeNote||'';
+  document.getElementById('f_desc').innerHTML=s.desc;
+  document.getElementById('f_assignees').value=(s.assignees||[]).join(', ');
+  document.getElementById('f_venue').value=s.venue||'';
+  renderAssigneeColorPickers(s.assignees||[]);
+  document.getElementById('modalBg').classList.add('open');
+}
+function closeModal(){document.getElementById('modalBg').classList.remove('open');closeCpop();}
+function bgClick(e){if(e.target===document.getElementById('modalBg'))closeModal();}
+
+// live-update colour pickers as the assignee text field changes
+document.getElementById('f_assignees').addEventListener('input', e=>{
+  const names = e.target.value.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
+  renderAssigneeColorPickers(names);
+});
+function renderAssigneeColorPickers(names){
+  const wrap=document.getElementById('f_assignee_colors_wrap');
+  const box=document.getElementById('f_assignee_colors');
+  if(!names.length){ wrap.style.display='none'; box.innerHTML=''; return; }
+  wrap.style.display='block';
+  box.innerHTML = names.map(n=>{
+    const c = assigneeColor(n);
+    return `<div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:20px;padding:3px 10px 3px 4px">
+      <input type="color" value="${c}" style="width:24px;height:24px;border:none;border-radius:50%;cursor:pointer;padding:0"
+        oninput="nameColorMap['${escAttr(n)}']=this.value;this.nextElementSibling.style.color=this.value">
+      <span style="font-size:.78rem;font-weight:700;color:${c}">${escapeHtml(n)}</span>
+    </div>`;
+  }).join('');
+}
+
+function saveSlot(){
+  const date=document.getElementById('f_date').value;
+  const type=document.getElementById('f_type').value;
+  const start=document.getElementById('f_start').value;
+  const end=document.getElementById('f_end').value;
+  const timeNote=document.getElementById('f_timenote').value.trim();
+  const desc=document.getElementById('f_desc').innerHTML.trim();
+  const ar=document.getElementById('f_assignees').value;
+  const venue=document.getElementById('f_venue').value.trim();
+  if(!date||!start||!desc){alert('請填寫日期、開始時間與工作內容');return;}
+  const assignees=ar.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
+  assignees.forEach(a=>assigneeColor(a));
+  const rec={id:editingId??nextId,date,type,start,end,timeNote,desc,assignees,venue};
+  if(editingId!==null){
+    const i=data.findIndex(x=>x.id===editingId);
+    if(i!==-1)data[i]=rec;
+  }else{data.push(rec);nextId++;}
+  closeModal();render();scheduleSave();
+}
+function deleteSlot(id){
+  if(!confirm('確定要刪除？'))return;
+  data=data.filter(x=>x.id!==id);
+  render();scheduleSave();
+}
+
+/* ══════════════════════════════════════
+   RTE
+══════════════════════════════════════ */
+function rteExec(cmd,val){
+  document.getElementById('f_desc').focus();
+  document.execCommand(cmd,false,val||null);
+}
+
+/* ══════════════════════════════════════
+   COLOUR PICKER (shared popup)
+══════════════════════════════════════ */
+const COLOR_SWATCHES=[
+  '#C62828','#E53935','#F57F17','#E07B2A','#F9A825',
+  '#558B2F','#2E7D32','#00897B','#1AADCE','#0277BD',
+  '#1565C0','#3949AB','#6A3B8B','#8E24AA','#8B1A5C',
+  '#AD1457','#4E342E','#37474F','#546E7A','#000000',
+  '#FFFFFF','#FFE0B2','#B3E5FC','#C8E6C9','#F8BBD0',
+  '#FFF176','#D7CCC8','#CFD8DC','#E1BEE7','#BBDEFB',
+];
+
+let cpopMode=null;
+let cpopPillName=null;
+
+function buildCpop(onPick){
+  const el=document.getElementById('cpop');
+  el.innerHTML='';
+  COLOR_SWATCHES.forEach(c=>{
+    const sw=document.createElement('div');
+    sw.className='cpop-swatch';
+    sw.style.background=c;
+    if(c==='#FFFFFF')sw.style.border='2px solid #ccc';
+    sw.onclick=()=>{ onPick(c); closeCpop(); };
+    el.appendChild(sw);
+  });
+}
+function positionCpop(anchor){
+  const el=document.getElementById('cpop');
+  const r=anchor.getBoundingClientRect();
+  el.style.display='grid';
+  el.style.top=(r.bottom+6+window.scrollY)+'px';
+  el.style.left=Math.min(r.left,window.innerWidth-175)+'px';
+}
+function closeCpop(){document.getElementById('cpop').style.display='none';cpopMode=null;}
+document.addEventListener('click',e=>{
+  const cp=document.getElementById('cpop');
+  if(cp.style.display!=='none'&&!cp.contains(e.target)&&
+     !e.target.closest('#rteFgBtn')&&!e.target.closest('#rteBgBtn')&&
+     !e.target.closest('.assignee-pill')&&!e.target.closest('.am-color-pick'))
+    closeCpop();
+});
+
+function toggleColorPop(mode){
+  const anchor=mode==='fg'?document.getElementById('rteFgBtn'):document.getElementById('rteBgBtn');
+  if(cpopMode===mode){closeCpop();return;}
+  cpopMode=mode;
+  buildCpop(c=>{
+    if(mode==='fg') rteExec('foreColor',c);
+    else rteExec('hiliteColor',c);
+  });
+  positionCpop(anchor);
+}
+function quickColorPill(e,name){
+  e.stopPropagation();
+  if(cpopMode==='pill'&&cpopPillName===name){closeCpop();return;}
+  cpopMode='pill'; cpopPillName=name;
+  buildCpop(c=>{
+    nameColorMap[name]=c;
+    render();scheduleSave();
+  });
+  positionCpop(e.currentTarget);
+}
+
+/* ══════════════════════════════════════
+   ASSIGNEE MANAGER MODAL
+══════════════════════════════════════ */
+function openAssigneeManager(){
+  const list=document.getElementById('amList');
+  const allNames=new Set();
+  data.forEach(s=>(s.assignees||[]).forEach(a=>allNames.add(a)));
+  if(!allNames.size){alert('尚未新增任何人員／單位');return;}
+  list.innerHTML='';
+  allNames.forEach(name=>{
+    const row=document.createElement('div');
+    row.className='am-row';
+    const color=assigneeColor(name);
+    row.innerHTML=`
+      <span class="am-pill-prev" style="background:${color}">${escapeHtml(name)}</span>
+      <input type="color" class="am-color-pick" value="${color}"
+        oninput="updateAssigneeColor('${escAttr(name)}',this.value,this.closest('.am-row').querySelector('.am-pill-prev'))">
+      <span style="font-size:.8rem;color:var(--muted)">點色盤選色</span>`;
+    list.appendChild(row);
+  });
+  document.getElementById('amBg').classList.add('open');
+}
+function updateAssigneeColor(name,color,preview){
+  nameColorMap[name]=color;
+  if(preview)preview.style.background=color;
+  render();scheduleSave();
+}
+function closeAM(){document.getElementById('amBg').classList.remove('open');}
+
+/* ══════════════════════════════════════
+   EXPORT JPG
+══════════════════════════════════════ */
+function exportJPG(){
+  const hint=document.getElementById('exportHint');
+  hint.classList.add('show');
+  document.querySelectorAll('.slot-actions').forEach(el=>el.style.display='none');
+  const toolbar=document.querySelector('.toolbar');
+  toolbar.style.display='none';
+  const hdBtn=document.querySelector('.header-edit-btn');
+  const backBtn=document.querySelector('.back-btn');
+  hdBtn.style.display='none';
+  backBtn.style.display='none';
+
+  setTimeout(()=>{
+    html2canvas(document.getElementById('editorView'),{
+      scale:2,
+      useCORS:true,
+      backgroundColor:'#FAF8FB',
+    }).then(canvas=>{
+      toolbar.style.display='';
+      hdBtn.style.display='';
+      backBtn.style.display='';
+      document.querySelectorAll('.slot-actions').forEach(el=>el.style.display='');
+      hint.classList.remove('show');
+      const a=document.createElement('a');
+      a.href=canvas.toDataURL('image/jpeg',0.93);
+      a.download=`${(headerCfg?.title||'施工安排')}_${new Date().toISOString().slice(0,10)}.jpg`;
+      a.click();
+    }).catch(()=>{
+      toolbar.style.display='';
+      hdBtn.style.display='';
+      backBtn.style.display='';
+      document.querySelectorAll('.slot-actions').forEach(el=>el.style.display='');
+      hint.classList.remove('show');
+      alert('JPG 匯出失敗，請稍後再試');
+    });
+  },200);
+}
+
+/* ══════════════════════════════════════
+   HEADER SETTINGS
+══════════════════════════════════════ */
+function applyHeaderCfg(){
+  document.getElementById('projectName').textContent = headerCfg.title;
+  document.getElementById('projectSub').textContent = headerCfg.sub;
+  document.getElementById('venueDisplay').textContent = headerCfg.venue;
+  document.getElementById('dateRangeDisplay').textContent = headerCfg.date;
+
+  const root=document.documentElement.style;
+  root.setProperty('--f-title-family', headerCfg.titleFont || 'inherit');
+  root.setProperty('--f-title-size', headerCfg.titleSize+'px');
+  root.setProperty('--f-title-weight', headerCfg.titleWeight);
+
+  root.setProperty('--f-sub-family', headerCfg.subFont || 'inherit');
+  root.setProperty('--f-sub-size', headerCfg.subSize+'px');
+  root.setProperty('--f-sub-weight', headerCfg.subWeight);
+
+  root.setProperty('--f-venue-family', headerCfg.venueFont || 'inherit');
+  root.setProperty('--f-venue-size', headerCfg.venueSize+'px');
+  root.setProperty('--f-venue-weight', headerCfg.venueWeight);
+
+  root.setProperty('--f-date-family', headerCfg.dateFont || 'inherit');
+  root.setProperty('--f-date-size', headerCfg.dateSize+'px');
+  root.setProperty('--f-date-weight', headerCfg.dateWeight);
+}
+
+function openHeaderSettings(){
+  document.getElementById('hd_title').value = headerCfg.title;
+  document.getElementById('hd_title_font').value = headerCfg.titleFont;
+  document.getElementById('hd_title_size').value = headerCfg.titleSize;
+  document.getElementById('hd_title_weight').value = headerCfg.titleWeight;
+
+  document.getElementById('hd_sub').value = headerCfg.sub;
+  document.getElementById('hd_sub_font').value = headerCfg.subFont;
+  document.getElementById('hd_sub_size').value = headerCfg.subSize;
+  document.getElementById('hd_sub_weight').value = headerCfg.subWeight;
+
+  document.getElementById('hd_venue').value = headerCfg.venue;
+  document.getElementById('hd_venue_font').value = headerCfg.venueFont;
+  document.getElementById('hd_venue_size').value = headerCfg.venueSize;
+  document.getElementById('hd_venue_weight').value = headerCfg.venueWeight;
+
+  document.getElementById('hd_date').value = headerCfg.date;
+  document.getElementById('hd_date_font').value = headerCfg.dateFont;
+  document.getElementById('hd_date_size').value = headerCfg.dateSize;
+  document.getElementById('hd_date_weight').value = headerCfg.dateWeight;
+
+  document.getElementById('hdBg').classList.add('open');
+}
+function closeHeaderSettings(){
+  document.getElementById('hdBg').classList.remove('open');
+}
+function saveHeaderSettings(){
+  headerCfg = {
+    title: document.getElementById('hd_title').value.trim() || HD_DEFAULTS.title,
+    titleFont: document.getElementById('hd_title_font').value,
+    titleSize: parseInt(document.getElementById('hd_title_size').value) || HD_DEFAULTS.titleSize,
+    titleWeight: document.getElementById('hd_title_weight').value,
+
+    sub: document.getElementById('hd_sub').value.trim(),
+    subFont: document.getElementById('hd_sub_font').value,
+    subSize: parseInt(document.getElementById('hd_sub_size').value) || HD_DEFAULTS.subSize,
+    subWeight: document.getElementById('hd_sub_weight').value,
+
+    venue: document.getElementById('hd_venue').value.trim(),
+    venueFont: document.getElementById('hd_venue_font').value,
+    venueSize: parseInt(document.getElementById('hd_venue_size').value) || HD_DEFAULTS.venueSize,
+    venueWeight: document.getElementById('hd_venue_weight').value,
+
+    date: document.getElementById('hd_date').value.trim(),
+    dateFont: document.getElementById('hd_date_font').value,
+    dateSize: parseInt(document.getElementById('hd_date_size').value) || HD_DEFAULTS.dateSize,
+    dateWeight: document.getElementById('hd_date_weight').value,
+  };
+  applyHeaderCfg();
+  closeHeaderSettings();
+  scheduleSave();
+}
+
+/* ══════════════════════════════════════
+   FILTER LISTENERS (editor)
+══════════════════════════════════════ */
+document.getElementById('filterDate').addEventListener('change',render);
+document.getElementById('filterType').addEventListener('change',render);
+</script>
+</body>
+</html>
