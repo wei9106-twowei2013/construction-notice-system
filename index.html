@@ -1339,7 +1339,7 @@ function render(){
         `<span class="assignee-pill" style="background:${assigneeColor(a)}"
           onclick="quickColorPill(event,'${escAttr(a)}')">${escapeHtml(a)}</span>`
       ).join('');
-      const venueHTML=s.venue?`<span class="slot-venue">${svgIcon('ico-pin',11)} ${escapeHtml(s.venue)}</span>`:'';
+      const venueHTML=s.venue?`<span class="slot-venue">${escapeHtml(s.venue)}</span>`:'';
       const timeNoteHTML=s.timeNote?`<div class="time-note">${escapeHtml(s.timeNote)}</div>`:'';
       const timeLabel=s.end?`${s.start}<span class="t-tilde"> ~ </span>${s.end}`:s.start;
       const seqStr = String(seqMap.get(s.id)||1).padStart(3,'0');
