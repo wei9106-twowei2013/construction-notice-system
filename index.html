@@ -220,7 +220,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 /* left time column */
 .slot-time{position:absolute;left:-150px;top:0;width:128px;
   text-align:right;padding-right:18px;padding-top:14px}
-.slot-time .time-range{font-size:1.05rem;font-weight:800;color:var(--brand);line-height:1.3}
+.slot-time .time-range{font-size:1.05rem;font-weight:600;color:var(--brand);line-height:1.3}
 .slot-time .time-range .t-tilde{font-size:.82rem;opacity:.6}
 .slot-time .time-note{font-size:.73rem;color:var(--muted);margin-top:5px;line-height:1.4;font-weight:500}
 
@@ -322,11 +322,22 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .modal-foot .btn-ghost:hover{background:var(--bg)}
 
 /* ── Assignee manager modal ── */
-.am-modal{max-width:400px}
-.am-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto}
-.am-row{display:flex;align-items:center;gap:8px}
-.am-pill-prev{border-radius:20px;padding:3px 14px;font-size:.8rem;font-weight:700;color:#fff;min-width:60px;text-align:center}
-.am-color-pick{width:30px;height:30px;border:2px solid var(--border);border-radius:8px;cursor:pointer;padding:0}
+.am-modal{max-width:420px}
+.am-list{display:flex;flex-direction:column;gap:16px;max-height:420px;overflow-y:auto}
+.am-row{display:flex;flex-direction:column;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.am-row:last-child{border-bottom:none;padding-bottom:0}
+.am-row-top{display:flex;align-items:center}
+.am-pill-prev{border-radius:20px;padding:4px 16px;font-size:.82rem;font-weight:700;color:#fff;min-width:60px;text-align:center}
+.am-swatch-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;max-width:280px}
+.am-swatch{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent;
+  transition:transform .12s,box-shadow .12s;display:flex;align-items:center;justify-content:center;position:relative}
+.am-swatch:hover{transform:scale(1.12);box-shadow:0 0 0 2px #fff,0 0 0 3px #ccc}
+.am-swatch-custom{background:conic-gradient(from 0deg,#ff0000,#ffea00,#22ff00,#00fff2,#0033ff,#cc00ff,#ff0000);
+  overflow:hidden}
+.am-swatch-custom input[type=color]{
+  opacity:0;position:absolute;inset:0;width:100%;height:100%;border:none;cursor:pointer;padding:0}
+.am-swatch-custom::after{
+  content:'';position:absolute;inset:5px;background:#fff;border-radius:50%;pointer-events:none}
 
 /* ── Header settings modal ── */
 .hd-modal{max-width:560px}
@@ -1461,7 +1472,7 @@ document.addEventListener('click',e=>{
   const cp=document.getElementById('cpop');
   if(cp.style.display!=='none'&&!cp.contains(e.target)&&
      !e.target.closest('#rteFgBtn')&&!e.target.closest('#rteBgBtn')&&
-     !e.target.closest('.assignee-pill')&&!e.target.closest('.am-color-pick'))
+     !e.target.closest('.assignee-pill')&&!e.target.closest('.am-swatch'))
     closeCpop();
 });
 
@@ -1489,6 +1500,12 @@ function quickColorPill(e,name){
 /* ══════════════════════════════════════
    ASSIGNEE MANAGER MODAL
 ══════════════════════════════════════ */
+/* ── 12-swatch quick palette for assignee colour picker ── */
+const AM_QUICK_SWATCHES=[
+  '#8B1A5C','#C62828','#E07B2A','#F9A825',
+  '#558B2F','#00897B','#1AADCE','#1565C0',
+  '#3949AB','#6A3B8B','#AD1457','#4E342E',
+];
 function openAssigneeManager(){
   const list=document.getElementById('amList');
   const allNames=new Set();
@@ -1499,18 +1516,31 @@ function openAssigneeManager(){
     const row=document.createElement('div');
     row.className='am-row';
     const color=assigneeColor(name);
+    const swatchesHTML = AM_QUICK_SWATCHES.map(c=>
+      `<span class="am-swatch" style="background:${c}" onclick="updateAssigneeColor('${escAttr(name)}','${c}',this)"></span>`
+    ).join('');
     row.innerHTML=`
-      <span class="am-pill-prev" style="background:${color}">${escapeHtml(name)}</span>
-      <input type="color" class="am-color-pick" value="${color}"
-        oninput="updateAssigneeColor('${escAttr(name)}',this.value,this.closest('.am-row').querySelector('.am-pill-prev'))">
-      <span style="font-size:.8rem;color:var(--muted)">點色盤選色</span>`;
+      <div class="am-row-top">
+        <span class="am-pill-prev" style="background:${color}">${escapeHtml(name)}</span>
+      </div>
+      <div class="am-swatch-grid" data-name="${escAttr(name)}">
+        ${swatchesHTML}
+        <span class="am-swatch am-swatch-custom" title="自訂顏色">
+          <input type="color" value="${color}"
+            oninput="updateAssigneeColor('${escAttr(name)}',this.value,this)">
+        </span>
+      </div>`;
     list.appendChild(row);
   });
   document.getElementById('amBg').classList.add('open');
 }
-function updateAssigneeColor(name,color,preview){
+function updateAssigneeColor(name,color,swatchEl){
   nameColorMap[name]=color;
-  if(preview)preview.style.background=color;
+  // update the row's preview pill
+  const grid = swatchEl.closest('.am-swatch-grid');
+  const row = grid ? grid.closest('.am-row') : null;
+  const preview = row ? row.querySelector('.am-pill-prev') : null;
+  if(preview) preview.style.background=color;
   render();scheduleSave();
 }
 function closeAM(){document.getElementById('amBg').classList.remove('open');}
