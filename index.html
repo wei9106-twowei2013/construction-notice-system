@@ -356,6 +356,14 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .am-swatch-custom::after{
   content:'';position:absolute;inset:5px;background:#fff;border-radius:50%;pointer-events:none}
 
+/* small variant used inside the new/edit-slot form (assignee quick colour picker) */
+.form-assignee-color-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--bg);border-radius:12px;padding:8px 10px;margin-bottom:6px}
+.am-swatch-grid-sm{display:flex;flex-wrap:wrap;gap:5px;max-width:none}
+.am-swatch-sm{width:20px;height:20px}
+.am-swatch-sm:hover{transform:scale(1.18)}
+.am-swatch-sm.am-swatch-custom::after{inset:3px}
+
 /* ── Header settings modal ── */
 .hd-modal{max-width:560px}
 .hd-section{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border)}
@@ -991,6 +999,12 @@ const PALETTE = [
   '#00695C','#1565C0','#AD1457','#F57F17',
   '#4E342E','#37474F','#0277BD','#558B2F',
 ];
+/* 12-swatch quick palette shown in colour pickers (assignee manager + new-slot form) */
+const AM_QUICK_SWATCHES=[
+  '#8B1A5C','#C62828','#E07B2A','#F9A825',
+  '#558B2F','#00897B','#1AADCE','#1565C0',
+  '#3949AB','#6A3B8B','#AD1457','#4E342E',
+];
 let nameColorMap = {};
 let paletteIdx = 0;
 function assigneeColor(name){
@@ -1559,12 +1573,26 @@ function renderAssigneeColorPickers(names){
   wrap.style.display='block';
   box.innerHTML = names.map(n=>{
     const c = assigneeColor(n);
-    return `<div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:20px;padding:3px 10px 3px 4px">
-      <input type="color" value="${c}" style="width:24px;height:24px;border:none;border-radius:50%;cursor:pointer;padding:0"
-        oninput="nameColorMap['${escAttr(n)}']=this.value;this.nextElementSibling.style.color=this.value">
-      <span style="font-size:.78rem;font-weight:700;color:${c}">${escapeHtml(n)}</span>
+    const swatchesHTML = AM_QUICK_SWATCHES.map(sc=>
+      `<span class="am-swatch am-swatch-sm" style="background:${sc}" onclick="pickFormAssigneeColor('${escAttr(n)}','${sc}',this)"></span>`
+    ).join('');
+    return `<div class="form-assignee-color-row">
+      <span class="am-pill-prev" style="background:${c}">${escapeHtml(n)}</span>
+      <div class="am-swatch-grid am-swatch-grid-sm">
+        ${swatchesHTML}
+        <span class="am-swatch am-swatch-sm am-swatch-custom" title="自訂顏色">
+          <input type="color" value="${c}"
+            oninput="pickFormAssigneeColor('${escAttr(n)}',this.value,this)">
+        </span>
+      </div>
     </div>`;
   }).join('');
+}
+function pickFormAssigneeColor(name,color,el){
+  nameColorMap[name]=color;
+  const row = el.closest('.form-assignee-color-row');
+  const preview = row ? row.querySelector('.am-pill-prev') : null;
+  if(preview) preview.style.background=color;
 }
 
 function saveSlot(){
@@ -1684,12 +1712,6 @@ function quickColorPill(e,name){
 /* ══════════════════════════════════════
    ASSIGNEE MANAGER MODAL
 ══════════════════════════════════════ */
-/* ── 12-swatch quick palette for assignee colour picker ── */
-const AM_QUICK_SWATCHES=[
-  '#8B1A5C','#C62828','#E07B2A','#F9A825',
-  '#558B2F','#00897B','#1AADCE','#1565C0',
-  '#3949AB','#6A3B8B','#AD1457','#4E342E',
-];
 function openAssigneeManager(){
   const list=document.getElementById('amList');
   const allNames=new Set();
