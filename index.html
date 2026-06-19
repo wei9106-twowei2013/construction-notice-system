@@ -1286,6 +1286,12 @@ function openShareTypeMenu(id){
     ${typeButtons}
   `;
   menu.classList.add('nc-menu-scroll');
+  // Rebuilding innerHTML detaches the originally-clicked <button> from the
+  // DOM, so by the time this click bubbles up to the document-level
+  // "click outside to close" listener, e.target no longer matches
+  // menu.contains(e.target) and the menu gets closed immediately.
+  // Re-assert 'show' after the current click has finished bubbling.
+  setTimeout(()=> menu.classList.add('show'), 0);
 }
 function copyShareLink(id, type){
   document.getElementById('ncMenu').classList.remove('show');
