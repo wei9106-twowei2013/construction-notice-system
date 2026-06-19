@@ -98,9 +98,17 @@ a{color:inherit}
 
 .notice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
 .notice-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
-  padding:18px 20px;cursor:pointer;transition:box-shadow .15s,transform .1s;position:relative;
+  padding:18px 20px;cursor:pointer;transition:box-shadow .15s,transform .1s,opacity .15s;position:relative;
   display:flex;flex-direction:column;gap:8px}
 .notice-card:hover{box-shadow:0 8px 28px rgba(139,26,92,.16);transform:translateY(-2px)}
+.notice-card.dragging{opacity:.4}
+.notice-card.drag-over-left{box-shadow:inset 3px 0 0 0 var(--brand)}
+.notice-card.drag-over-right{box-shadow:inset -3px 0 0 0 var(--brand)}
+.notice-card .nc-seq{display:flex;align-items:center;gap:6px;margin-bottom:-2px}
+.notice-card .nc-seq-num{font-size:.7rem;font-weight:700;color:var(--muted);letter-spacing:.02em}
+.notice-card .nc-drag-handle{cursor:grab;color:var(--muted);opacity:.5;display:flex;transition:opacity .12s}
+.notice-card .nc-drag-handle:hover{opacity:1}
+.notice-card .nc-drag-handle:active{cursor:grabbing}
 .notice-card h3{font-size:1.1rem;font-weight:800;color:var(--brand-dark);line-height:1.3;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:30px}
 .notice-card .nc-meta{font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:5px}
@@ -1100,7 +1108,14 @@ async function fsListNotices(){
   const snap = await FB.getDocs(colRef);
   const list = [];
   snap.forEach(d=> list.push({ id:d.id, ...d.data() }));
+  // Sort by manual noticeOrder when present; notices without one (legacy
+  // data, or freshly created in the same load) fall back to most-recently-
+  // updated first, and are placed after any explicitly ordered notices.
   list.sort((a,b)=>{
+    const ao = a.noticeOrder, bo = b.noticeOrder;
+    if(ao!=null && bo!=null) return ao-bo;
+    if(ao!=null) return -1;
+    if(bo!=null) return 1;
     const ta = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
     const tb = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
     return tb - ta;
@@ -1115,6 +1130,12 @@ async function fsGetNotice(id){
 async function fsSaveNotice(id, payload){
   const ref = FB.doc(FB.db, NOTICES_COLLECTION, id);
   await FB.setDoc(ref, { ...payload, updatedAt: FB.serverTimestamp() }, { merge:true });
+}
+// Used for reordering only — deliberately does NOT touch updatedAt, so
+// dragging a notice card doesn't make every other notice look "just edited".
+async function fsSaveNoticeOrderOnly(id, noticeOrder){
+  const ref = FB.doc(FB.db, NOTICES_COLLECTION, id);
+  await FB.setDoc(ref, { noticeOrder }, { merge:true });
 }
 async function fsDeleteNotice(id){
   const ref = FB.doc(FB.db, NOTICES_COLLECTION, id);
@@ -1226,12 +1247,17 @@ function renderNoticeList(){
     </div>`;
     return;
   }
-  grid.innerHTML = list.map(n=>{
+  grid.innerHTML = list.map((n,i)=>{
     const title = n.headerCfg?.title || '未命名通告';
     const venue = n.headerCfg?.venue || '';
     const dateText = n.headerCfg?.date || '';
     const count = (n.data||[]).length;
-    return `<div class="notice-card" onclick="openNotice('${n.id}')">
+    const seqStr = String(i+1).padStart(3,'0');
+    return `<div class="notice-card" data-notice-id="${n.id}" draggable="true" onclick="openNotice('${n.id}')">
+      <div class="nc-seq">
+        <span class="nc-seq-num">${seqStr}</span>
+        <span class="nc-drag-handle" title="拖曳排序" onclick="event.stopPropagation()">${svgIcon('ico-grip',13)}</span>
+      </div>
       <h3>${escapeHtml(title)}</h3>
       ${venue? `<div class="nc-meta">${svgIcon('ico-pin',12)} ${escapeHtml(venue)}</div>`:''}
       ${dateText? `<div class="nc-meta">${svgIcon('ico-cal',12)} ${escapeHtml(dateText)}</div>`:''}
@@ -1242,10 +1268,78 @@ function renderNoticeList(){
       </button>
     </div>`;
   }).join('');
+  attachNoticeDragHandlers();
 }
 
 function escapeHtml(s){
   const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML;
+}
+
+/* ══════════════════════════════════════
+   NOTICE CARD DRAG & DROP REORDERING
+══════════════════════════════════════ */
+let dragNoticeId = null;
+
+function attachNoticeDragHandlers(){
+  document.querySelectorAll('.notice-card').forEach(el=>{
+    el.addEventListener('dragstart', e=>{
+      dragNoticeId = el.dataset.noticeId;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      try{ e.dataTransfer.setData('text/plain', dragNoticeId); }catch(err){}
+    });
+    el.addEventListener('dragend', ()=>{
+      el.classList.remove('dragging');
+      document.querySelectorAll('.notice-card').forEach(x=>x.classList.remove('drag-over-left','drag-over-right'));
+    });
+    el.addEventListener('dragover', e=>{
+      e.preventDefault();
+      if(dragNoticeId===null || el.dataset.noticeId===dragNoticeId) return;
+      const rect=el.getBoundingClientRect();
+      const isLeft = (e.clientX - rect.left) < rect.width/2;
+      el.classList.toggle('drag-over-left', isLeft);
+      el.classList.toggle('drag-over-right', !isLeft);
+    });
+    el.addEventListener('dragleave', ()=>{
+      el.classList.remove('drag-over-left','drag-over-right');
+    });
+    el.addEventListener('drop', e=>{
+      e.preventDefault();
+      el.classList.remove('drag-over-left','drag-over-right');
+      if(dragNoticeId===null) return;
+      const targetId = el.dataset.noticeId;
+      if(targetId===dragNoticeId) return;
+      const rect=el.getBoundingClientRect();
+      const dropBefore = (e.clientX - rect.left) < rect.width/2;
+      reorderNotice(dragNoticeId, targetId, dropBefore);
+      dragNoticeId=null;
+    });
+  });
+}
+
+async function reorderNotice(sourceId, targetId, before){
+  const ordered = [...noticesCache];
+  const srcIdx = ordered.findIndex(n=>n.id===sourceId);
+  if(srcIdx===-1) return;
+  const [srcNotice] = ordered.splice(srcIdx,1);
+  let targetIdx = ordered.findIndex(n=>n.id===targetId);
+  if(targetIdx===-1) targetIdx = ordered.length;
+  const insertAt = before ? targetIdx : targetIdx+1;
+  ordered.splice(insertAt, 0, srcNotice);
+
+  // renumber everyone and persist
+  ordered.forEach((n,i)=>{ n.noticeOrder = i; });
+  noticesCache = ordered;
+  renderNoticeList();
+
+  try{
+    await Promise.all(ordered.map(n=>
+      fsSaveNoticeOrderOnly(n.id, n.noticeOrder)
+    ));
+  }catch(e){
+    console.error(e);
+    alert('排序儲存失敗，請檢查網路連線');
+  }
 }
 
 function openNcMenu(e, id){
@@ -1328,6 +1422,7 @@ async function duplicateNotice(id){
       nextId: src.nextId||1,
       nameColorMap: src.nameColorMap||{},
       paletteIdx: src.paletteIdx||0,
+      noticeOrder: nextNoticeOrder(),
       createdAt: FB.serverTimestamp(),
     });
     noticesCache = await fsListNotices();
@@ -1370,15 +1465,22 @@ async function createNewNotice(){
   const dateText = document.getElementById('nn_date').value.trim();
   const id = genId();
   const hc = { ...HD_DEFAULTS, title, venue, date: dateText };
+  const noticeOrder = nextNoticeOrder();
   document.getElementById('loadingOverlay').classList.remove('hide');
   try{
     await fsSaveNotice(id, {
       headerCfg: hc, data: [], nextId: 1, nameColorMap: {}, paletteIdx: 0,
+      noticeOrder,
       createdAt: FB.serverTimestamp(),
     });
   }catch(e){ console.error(e); alert('建立失敗，請檢查網路連線'); document.getElementById('loadingOverlay').classList.add('hide'); return; }
   closeNewNoticeModal();
   await openNotice(id);
+}
+function nextNoticeOrder(){
+  if(!noticesCache.length) return 0;
+  const orders = noticesCache.map(n=>n.noticeOrder).filter(o=>o!=null);
+  return orders.length ? Math.max(...orders)+1 : noticesCache.length;
 }
 
 /* ══════════════════════════════════════
