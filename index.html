@@ -224,9 +224,8 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 /* drag handle + sequence number, sits between the timeline rule and the card */
 .slot-seq{position:absolute;left:-58px;top:14px;width:36px;
   display:flex;flex-direction:column;align-items:center;gap:4px;z-index:2}
-.slot-seq .seq-num{font-size:.68rem;font-weight:800;color:#fff;background:var(--muted);
-  border-radius:5px;padding:2px 5px;letter-spacing:.03em;line-height:1.3;min-width:26px;text-align:center}
-.slot[data-type] .slot-seq .seq-num{background:var(--brand)}
+.slot-seq .seq-num{font-size:.72rem;font-weight:700;color:var(--muted);
+  letter-spacing:.02em;line-height:1.3;text-align:center}
 .slot-seq .drag-handle{cursor:grab;color:var(--muted);opacity:.55;transition:opacity .12s;display:flex}
 .slot-seq .drag-handle:hover{opacity:1}
 .slot-seq .drag-handle:active{cursor:grabbing}
@@ -278,7 +277,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .assignee-pill:hover{filter:brightness(1.15)}
 
 .slot-actions{margin-top:10px;display:flex;align-items:center;gap:7px}
-.slot-actions .btn-delete-themed{margin-left:auto;color:#fff;border:none}
+.slot-actions .btn-delete-themed{margin-left:auto;color:#fff;border:none;background:var(--brand)}
 
 /* ── Empty ── */
 .empty{text-align:center;padding:60px 20px;color:var(--muted)}
@@ -1365,7 +1364,7 @@ function render(){
             style="color:var(--brand);border-color:var(--border)">
             ${svgIcon('ico-edit',12)} 編輯
           </button>
-          <button class="btn btn-sm btn-delete-themed" style="background:${cfg.color}" onclick="deleteSlot(${s.id})">
+          <button class="btn btn-sm btn-delete-themed" onclick="deleteSlot(${s.id})">
             ${svgIcon('ico-trash',12)} 刪除
           </button>
         </div>
