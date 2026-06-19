@@ -1676,8 +1676,15 @@ function positionCpop(anchor){
   const el=document.getElementById('cpop');
   const r=anchor.getBoundingClientRect();
   el.style.display='grid';
-  el.style.top=(r.bottom+6+window.scrollY)+'px';
-  el.style.left=Math.min(r.left,window.innerWidth-175)+'px';
+  // .cpop uses position:fixed, so coordinates are viewport-relative — do NOT add scrollY/scrollX
+  const popH = 4*22 + 3*5 + 20; // approx grid height incl. padding
+  const popW = 7*22 + 6*5 + 20; // approx grid width incl. padding
+  let top = r.bottom + 6;
+  if(top + popH > window.innerHeight) top = Math.max(8, r.top - popH - 6); // flip above if it would overflow bottom
+  let left = Math.min(r.left, window.innerWidth - popW - 8);
+  left = Math.max(8, left);
+  el.style.top = top + 'px';
+  el.style.left = left + 'px';
 }
 function closeCpop(){document.getElementById('cpop').style.display='none';cpopMode=null;}
 document.addEventListener('click',e=>{
