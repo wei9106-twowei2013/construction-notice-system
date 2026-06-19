@@ -1370,7 +1370,7 @@ function render(){
       const cfg=TYPE_CFG[s.type]||TYPE_CFG['其他'];
       const pills=(s.assignees||[]).map(a=>
         `<span class="assignee-pill" style="background:${assigneeColor(a)}"
-          onclick="quickColorPill(event,'${escAttr(a)}')">${escapeHtml(a)}</span>`
+          onclick="editSlot(${s.id})" title="點擊編輯此工作">${escapeHtml(a)}</span>`
       ).join('');
       const venueHTML=s.venue?`<span class="slot-venue">${escapeHtml(s.venue)}</span>`:'';
       const timeNoteHTML=s.timeNote?`<div class="time-note">${escapeHtml(s.timeNote)}</div>`:'';
@@ -1658,7 +1658,6 @@ const COLOR_SWATCHES=[
 ];
 
 let cpopMode=null;
-let cpopPillName=null;
 
 function buildCpop(onPick){
   const el=document.getElementById('cpop');
@@ -1690,8 +1689,7 @@ function closeCpop(){document.getElementById('cpop').style.display='none';cpopMo
 document.addEventListener('click',e=>{
   const cp=document.getElementById('cpop');
   if(cp.style.display!=='none'&&!cp.contains(e.target)&&
-     !e.target.closest('#rteFgBtn')&&!e.target.closest('#rteBgBtn')&&
-     !e.target.closest('.assignee-pill')&&!e.target.closest('.am-swatch'))
+     !e.target.closest('#rteFgBtn')&&!e.target.closest('#rteBgBtn'))
     closeCpop();
 });
 
@@ -1704,16 +1702,6 @@ function toggleColorPop(mode){
     else rteExec('hiliteColor',c);
   });
   positionCpop(anchor);
-}
-function quickColorPill(e,name){
-  e.stopPropagation();
-  if(cpopMode==='pill'&&cpopPillName===name){closeCpop();return;}
-  cpopMode='pill'; cpopPillName=name;
-  buildCpop(c=>{
-    nameColorMap[name]=c;
-    render();scheduleSave();
-  });
-  positionCpop(e.currentTarget);
 }
 
 /* ══════════════════════════════════════
@@ -1889,11 +1877,13 @@ document.getElementById('filterType').addEventListener('change',render);
 
 /* ══════════════════════════════════════
    ESC KEY TO CLOSE MODALS (safe, explicit)
+   Note: the work-slot modal (modalBg) is intentionally excluded — its
+   description field uses an IME for Chinese input, where ESC is commonly
+   used to cancel IME composition, not to close the dialog.
 ══════════════════════════════════════ */
 document.addEventListener('keydown', e=>{
   if(e.key!=='Escape') return;
-  if(document.getElementById('modalBg').classList.contains('open')) closeModal();
-  else if(document.getElementById('nnBg').classList.contains('open')) closeNewNoticeModal();
+  if(document.getElementById('nnBg').classList.contains('open')) closeNewNoticeModal();
   else if(document.getElementById('amBg').classList.contains('open')) closeAM();
   else if(document.getElementById('hdBg').classList.contains('open')) closeHeaderSettings();
 });
