@@ -1263,9 +1263,10 @@ function openNcMenu(e, id){
   menu.style.left = left + 'px';
   menu.classList.add('show');
 }
+const SHARE_LINK_BASE = 'https://construction-notice-share.wei9106.workers.dev/';
 function copyShareLink(id){
   document.getElementById('ncMenu').classList.remove('show');
-  const url = `${window.location.origin}${window.location.pathname}?view=${id}`;
+  const url = `${SHARE_LINK_BASE}?view=${id}`;
   const done = ()=> alert('已複製唯讀分享連結：\n' + url + '\n\n此連結免密碼即可開啟，僅供瀏覽，無法修改內容。');
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(url).then(done).catch(()=>{
