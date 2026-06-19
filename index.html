@@ -169,19 +169,25 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
 /* ── Toolbar ── */
 .toolbar{background:var(--brand-dark);border-top:1px solid rgba(255,255,255,.12)}
 .toolbar-inner{max-width:1000px;margin:0 auto;padding:8px 24px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.toolbar-inner select,.toolbar-inner input[type=date]{
+.toolbar-inner select{
   background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);
   color:#fff;border-radius:6px;padding:5px 10px;font-size:.82rem;outline:none;cursor:pointer;
-  min-width:118px;min-height:30px;-webkit-appearance:none;appearance:none;
-  color-scheme:dark}
+  min-width:110px;min-height:32px}
 .toolbar-inner select option{background:var(--brand-dark)}
-.toolbar-inner input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.9}
-.toolbar-inner input[type=date]::-webkit-datetime-edit{color:#fff}
-.toolbar-inner input[type=date]::-webkit-datetime-edit-fields-wrapper{color:#fff}
+/* Date input: use a solid light background so the browser's native
+   date text (which we cannot reliably recolour on iOS Safari) stays
+   readable regardless of platform. */
+.toolbar-inner input[type=date]{
+  background:#fff;border:1px solid rgba(255,255,255,.5);
+  color:#3a1a2a;border-radius:6px;padding:5px 10px;font-size:.82rem;outline:none;cursor:pointer;
+  min-width:128px;min-height:32px;color-scheme:light}
+.toolbar-inner input[type=date]::-webkit-calendar-picker-indicator{opacity:.75}
+.toolbar-inner input[type=date]::-webkit-datetime-edit{color:#3a1a2a}
+.toolbar-inner input[type=date]::-webkit-datetime-edit-fields-wrapper{color:#3a1a2a}
 .toolbar-inner input[type=date]::-webkit-datetime-edit-text,
 .toolbar-inner input[type=date]::-webkit-datetime-edit-month-field,
 .toolbar-inner input[type=date]::-webkit-datetime-edit-day-field,
-.toolbar-inner input[type=date]::-webkit-datetime-edit-year-field{color:#fff;opacity:1}
+.toolbar-inner input[type=date]::-webkit-datetime-edit-year-field{color:#3a1a2a;opacity:1}
 .btn{display:inline-flex;align-items:center;gap:5px;border:none;border-radius:7px;
   padding:6px 13px;font-size:.81rem;font-weight:600;cursor:pointer;
   transition:opacity .15s,transform .1s;white-space:nowrap}
