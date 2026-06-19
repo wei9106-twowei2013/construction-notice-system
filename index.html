@@ -210,15 +210,29 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .day-label .date-weekday{font-size:.76rem;color:var(--muted);letter-spacing:.1em;font-weight:600;margin-left:6px}
 
 /* ── Timeline ── */
-.timeline{position:relative;padding-left:150px}
+.timeline{position:relative;padding-left:188px}
 .timeline::before{content:'';position:absolute;left:128px;top:0;bottom:0;width:2px;background:var(--border)}
 .slot{position:relative;margin-bottom:14px;background:var(--surface);
   border:1px solid var(--border);border-left:4px solid var(--brand);
-  border-radius:var(--radius);padding:14px 16px 12px;box-shadow:var(--shadow);transition:box-shadow .15s}
+  border-radius:var(--radius);padding:14px 16px 12px;box-shadow:var(--shadow);
+  transition:box-shadow .15s,opacity .15s,transform .12s}
 .slot:hover{box-shadow:0 4px 20px rgba(139,26,92,.13)}
+.slot.dragging{opacity:.4}
+.slot.drag-over-top{box-shadow:inset 0 3px 0 0 var(--brand)}
+.slot.drag-over-bottom{box-shadow:inset 0 -3px 0 0 var(--brand)}
+
+/* drag handle + sequence number, sits between the timeline rule and the card */
+.slot-seq{position:absolute;left:-58px;top:14px;width:36px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;z-index:2}
+.slot-seq .seq-num{font-size:.68rem;font-weight:800;color:#fff;background:var(--muted);
+  border-radius:5px;padding:2px 5px;letter-spacing:.03em;line-height:1.3;min-width:26px;text-align:center}
+.slot[data-type] .slot-seq .seq-num{background:var(--brand)}
+.slot-seq .drag-handle{cursor:grab;color:var(--muted);opacity:.55;transition:opacity .12s;display:flex}
+.slot-seq .drag-handle:hover{opacity:1}
+.slot-seq .drag-handle:active{cursor:grabbing}
 
 /* left time column */
-.slot-time{position:absolute;left:-150px;top:0;width:128px;
+.slot-time{position:absolute;left:-188px;top:0;width:128px;
   text-align:right;padding-right:18px;padding-top:14px}
 .slot-time .time-range{font-size:1.05rem;font-weight:600;color:var(--brand);line-height:1.3}
 .slot-time .time-range .t-tilde{font-size:.82rem;opacity:.6}
@@ -263,7 +277,8 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   letter-spacing:.04em;cursor:pointer;transition:filter .15s;user-select:none}
 .assignee-pill:hover{filter:brightness(1.15)}
 
-.slot-actions{margin-top:10px;display:flex;gap:7px}
+.slot-actions{margin-top:10px;display:flex;align-items:center;gap:7px}
+.slot-actions .btn-delete-themed{margin-left:auto;color:#fff;border:none}
 
 /* ── Empty ── */
 .empty{text-align:center;padding:60px 20px;color:var(--muted)}
@@ -361,7 +376,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 
 @media print{
   header{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .toolbar,.slot-actions,#addBtn,.rte-bar,.header-edit-btn,.back-btn{display:none!important}
+  .toolbar,.slot-actions,#addBtn,.rte-bar,.header-edit-btn,.back-btn,.drag-handle{display:none!important}
   .slot{break-inside:avoid}
 }
 @media(max-width:640px){
@@ -377,6 +392,8 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   .slot-time{position:static;width:auto;text-align:left;padding:0 0 8px 0;
     display:flex;align-items:baseline;gap:8px;border-bottom:1px dashed var(--border);margin-bottom:10px}
   .slot-time .time-note{margin-top:0}
+  .slot-seq{position:absolute;left:auto;right:14px;top:14px;width:auto;
+    flex-direction:row-reverse;gap:6px}
 
   .field-row{grid-template-columns:1fr}
   .hd-row{grid-template-columns:1fr 1fr}
@@ -480,6 +497,11 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   </symbol>
   <symbol id="ico-copy" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <rect x="5.5" y="5.5" width="9" height="9" rx="1.5"/><path d="M3.5 10.5h-1a1 1 0 01-1-1v-7a1 1 0 011-1h7a1 1 0 011 1v1"/>
+  </symbol>
+  <symbol id="ico-grip" viewBox="0 0 16 16" fill="currentColor">
+    <circle cx="6" cy="3.5" r="1.2"/><circle cx="10" cy="3.5" r="1.2"/>
+    <circle cx="6" cy="8" r="1.2"/><circle cx="10" cy="8" r="1.2"/>
+    <circle cx="6" cy="12.5" r="1.2"/><circle cx="10" cy="12.5" r="1.2"/>
   </symbol>
 </defs>
 </svg>
@@ -1220,6 +1242,7 @@ async function openNotice(id){
   paletteIdx = notice.paletteIdx || 0;
   headerCfg = Object.assign({}, HD_DEFAULTS, notice.headerCfg||{});
   seedColors(data);
+  ensureOrderFields();
 
   document.getElementById('loadingOverlay').classList.add('hide');
   document.getElementById('listView').classList.remove('active');
@@ -1292,9 +1315,12 @@ function render(){
   ).join('');
   let html=`<div class="legend">${legendHTML}</div>`;
 
+  // global sequence number across ALL visible slots, ordered by (date, order)
+  const seqMap = buildSeqMap(filtered);
+
   const WD=['日','一','二','三','四','五','六'];
   Object.keys(groups).sort().forEach(dk=>{
-    const slots=groups[dk].sort((a,b)=>a.start.localeCompare(b.start));
+    const slots=groups[dk].sort((a,b)=>(a.order??0)-(b.order??0));
     const d=new Date(dk+'T00:00:00');
     const yr=String(d.getFullYear()).slice(2);
     const mmdd=`${d.getMonth()+1}/${d.getDate()}`;
@@ -1306,7 +1332,7 @@ function render(){
         <span class="date-num">${mmdd}</span>
         <span class="date-weekday">${wd}</span>
       </div>
-      <div class="timeline">`;
+      <div class="timeline" data-date="${dk}">`;
 
     slots.forEach(s=>{
       const cfg=TYPE_CFG[s.type]||TYPE_CFG['其他'];
@@ -1317,8 +1343,13 @@ function render(){
       const venueHTML=s.venue?`<span class="slot-venue">${svgIcon('ico-pin',11)} ${escapeHtml(s.venue)}</span>`:'';
       const timeNoteHTML=s.timeNote?`<div class="time-note">${escapeHtml(s.timeNote)}</div>`:'';
       const timeLabel=s.end?`${s.start}<span class="t-tilde"> ~ </span>${s.end}`:s.start;
+      const seqStr = String(seqMap.get(s.id)||1).padStart(3,'0');
 
-      html+=`<div class="slot" data-type="${s.type}" data-id="${s.id}">
+      html+=`<div class="slot" data-type="${s.type}" data-id="${s.id}" draggable="true">
+        <div class="slot-seq">
+          <span class="seq-num">${seqStr}</span>
+          <span class="drag-handle" title="拖曳排序">${svgIcon('ico-grip',14)}</span>
+        </div>
         <div class="slot-time">
           <div class="time-range">${timeLabel}</div>
           ${timeNoteHTML}
@@ -1334,7 +1365,7 @@ function render(){
             style="color:var(--brand);border-color:var(--border)">
             ${svgIcon('ico-edit',12)} 編輯
           </button>
-          <button class="btn btn-danger btn-sm" onclick="deleteSlot(${s.id})">
+          <button class="btn btn-sm btn-delete-themed" style="background:${cfg.color}" onclick="deleteSlot(${s.id})">
             ${svgIcon('ico-trash',12)} 刪除
           </button>
         </div>
@@ -1343,6 +1374,120 @@ function render(){
     html+=`</div></div>`;
   });
   main.innerHTML=html;
+  attachDragHandlers();
+}
+
+/* assign a sequential 1-based number to every slot, ordered by date then order-field */
+function buildSeqMap(list){
+  const sorted=[...list].sort((a,b)=>{
+    if(a.date!==b.date) return a.date.localeCompare(b.date);
+    return (a.order??0)-(b.order??0);
+  });
+  const map=new Map();
+  sorted.forEach((s,i)=>map.set(s.id,i+1));
+  return map;
+}
+
+/* ensure every slot has a numeric `order` field; called once after load */
+function ensureOrderFields(){
+  const byDate={};
+  data.forEach(s=>{(byDate[s.date]=byDate[s.date]||[]).push(s);});
+  Object.values(byDate).forEach(arr=>{
+    arr.sort((a,b)=>{
+      const ao=a.order, bo=b.order;
+      if(ao!=null && bo!=null) return ao-bo;
+      if(ao!=null) return -1;
+      if(bo!=null) return 1;
+      return (a.start||'').localeCompare(b.start||'');
+    });
+    arr.forEach((s,i)=>{ s.order = i; });
+  });
+}
+
+/* ══════════════════════════════════════
+   DRAG & DROP REORDERING (cross-day)
+══════════════════════════════════════ */
+let dragSlotId = null;
+
+function attachDragHandlers(){
+  document.querySelectorAll('.slot').forEach(el=>{
+    el.addEventListener('dragstart', e=>{
+      dragSlotId = parseInt(el.dataset.id);
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      try{ e.dataTransfer.setData('text/plain', String(dragSlotId)); }catch(err){}
+    });
+    el.addEventListener('dragend', ()=>{
+      el.classList.remove('dragging');
+      document.querySelectorAll('.slot').forEach(x=>x.classList.remove('drag-over-top','drag-over-bottom'));
+    });
+    el.addEventListener('dragover', e=>{
+      e.preventDefault();
+      if(dragSlotId===null || parseInt(el.dataset.id)===dragSlotId) return;
+      const rect=el.getBoundingClientRect();
+      const isTop = (e.clientY - rect.top) < rect.height/2;
+      el.classList.toggle('drag-over-top', isTop);
+      el.classList.toggle('drag-over-bottom', !isTop);
+    });
+    el.addEventListener('dragleave', ()=>{
+      el.classList.remove('drag-over-top','drag-over-bottom');
+    });
+    el.addEventListener('drop', e=>{
+      e.preventDefault();
+      el.classList.remove('drag-over-top','drag-over-bottom');
+      if(dragSlotId===null) return;
+      const targetId=parseInt(el.dataset.id);
+      if(targetId===dragSlotId) return;
+      const rect=el.getBoundingClientRect();
+      const dropBefore = (e.clientY - rect.top) < rect.height/2;
+      const targetDate = el.closest('.timeline').dataset.date;
+      reorderSlot(dragSlotId, targetId, targetDate, dropBefore);
+      dragSlotId=null;
+    });
+  });
+
+  // also allow dropping into an empty timeline (e.g. dragging into a day group)
+  document.querySelectorAll('.timeline').forEach(tl=>{
+    tl.addEventListener('dragover', e=>e.preventDefault());
+    tl.addEventListener('drop', e=>{
+      if(e.target!==tl) return; // only when dropped on empty space, not bubbled from a .slot
+      if(dragSlotId===null) return;
+      const targetDate = tl.dataset.date;
+      moveSlotToEnd(dragSlotId, targetDate);
+      dragSlotId=null;
+    });
+  });
+}
+
+function reorderSlot(sourceId, targetId, targetDate, before){
+  const src = data.find(x=>x.id===sourceId);
+  if(!src) return;
+  src.date = targetDate;
+
+  // collect siblings on targetDate (excluding source), ordered
+  const siblings = data.filter(x=>x.date===targetDate && x.id!==sourceId)
+    .sort((a,b)=>(a.order??0)-(b.order??0));
+  const targetIdx = siblings.findIndex(x=>x.id===targetId);
+  let insertAt = targetIdx===-1 ? siblings.length : (before? targetIdx : targetIdx+1);
+  siblings.splice(insertAt, 0, src);
+
+  // renumber this day's slots
+  siblings.forEach((s,i)=>{ s.order=i; });
+
+  render();
+  scheduleSave();
+}
+
+function moveSlotToEnd(sourceId, targetDate){
+  const src = data.find(x=>x.id===sourceId);
+  if(!src) return;
+  src.date = targetDate;
+  const siblings = data.filter(x=>x.date===targetDate && x.id!==sourceId)
+    .sort((a,b)=>(a.order??0)-(b.order??0));
+  siblings.push(src);
+  siblings.forEach((s,i)=>{ s.order=i; });
+  render();
+  scheduleSave();
 }
 function escAttr(s){ return (s||'').replace(/'/g,"\\'"); }
 
@@ -1412,12 +1557,26 @@ function saveSlot(){
   if(!date||!start||!desc){alert('請填寫日期、開始時間與工作內容');return;}
   const assignees=ar.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
   assignees.forEach(a=>assigneeColor(a));
-  const rec={id:editingId??nextId,date,type,start,end,timeNote,desc,assignees,venue};
+
   if(editingId!==null){
     const i=data.findIndex(x=>x.id===editingId);
-    if(i!==-1)data[i]=rec;
-  }else{data.push(rec);nextId++;}
+    if(i!==-1){
+      const prev=data[i];
+      const dateChanged = prev.date !== date;
+      const order = dateChanged ? nextOrderForDate(date) : (prev.order??0);
+      data[i]={id:editingId,date,type,start,end,timeNote,desc,assignees,venue,order};
+    }
+  }else{
+    const order = nextOrderForDate(date);
+    data.push({id:nextId,date,type,start,end,timeNote,desc,assignees,venue,order});
+    nextId++;
+  }
   closeModal();render();scheduleSave();
+}
+function nextOrderForDate(date){
+  const siblings = data.filter(x=>x.date===date);
+  if(!siblings.length) return 0;
+  return Math.max(...siblings.map(x=>x.order??0)) + 1;
 }
 function deleteSlot(id){
   if(!confirm('確定要刪除？'))return;
@@ -1552,6 +1711,7 @@ function exportJPG(){
   const hint=document.getElementById('exportHint');
   hint.classList.add('show');
   document.querySelectorAll('.slot-actions').forEach(el=>el.style.display='none');
+  document.querySelectorAll('.drag-handle').forEach(el=>el.style.display='none');
   const toolbar=document.querySelector('.toolbar');
   toolbar.style.display='none';
   const hdBtn=document.querySelector('.header-edit-btn');
@@ -1569,6 +1729,7 @@ function exportJPG(){
       hdBtn.style.display='';
       backBtn.style.display='';
       document.querySelectorAll('.slot-actions').forEach(el=>el.style.display='');
+      document.querySelectorAll('.drag-handle').forEach(el=>el.style.display='');
       hint.classList.remove('show');
       const a=document.createElement('a');
       a.href=canvas.toDataURL('image/jpeg',0.93);
@@ -1579,6 +1740,7 @@ function exportJPG(){
       hdBtn.style.display='';
       backBtn.style.display='';
       document.querySelectorAll('.slot-actions').forEach(el=>el.style.display='');
+      document.querySelectorAll('.drag-handle').forEach(el=>el.style.display='');
       hint.classList.remove('show');
       alert('JPG 匯出失敗，請稍後再試');
     });
