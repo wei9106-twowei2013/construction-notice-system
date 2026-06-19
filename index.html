@@ -166,8 +166,12 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
   cursor:pointer;transition:background .15s;z-index:5}
 .header-edit-btn:hover{background:rgba(255,255,255,.28)}
 
-/* ── Toolbar ── */
-.toolbar{background:var(--brand-dark);border-top:1px solid rgba(255,255,255,.12)}
+.readonly-corner-badge{
+  display:none;position:absolute;top:10px;right:10px;
+  align-items:center;gap:5px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);
+  color:#fff;border-radius:7px;padding:5px 11px;font-size:.74rem;font-weight:600;z-index:5}
+.readonly-mode .readonly-corner-badge{display:inline-flex}
 .toolbar-inner{max-width:1000px;margin:0 auto;padding:8px 24px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .toolbar-inner select{
   background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);
@@ -402,6 +406,22 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .export-box{background:#fff;border-radius:12px;padding:28px 32px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.2)}
 .export-box p{font-size:.9rem;color:var(--muted);margin-top:8px}
 
+/* ── Read-only share mode ──
+   Activated via ?view=<noticeId> in the URL. Hides every control that
+   could mutate data, leaving only viewing / printing / JPG export. */
+.readonly-mode .back-btn,
+.readonly-mode .header-edit-btn,
+.readonly-mode #addBtn,
+.readonly-mode #filterDate,
+.readonly-mode .date-filter-wrap,
+.readonly-mode #filterType,
+.readonly-mode .toolbar-inner > button[onclick*="openAssigneeManager"],
+.readonly-mode .slot-actions,
+.readonly-mode .drag-handle{display:none!important}
+.readonly-mode .assignee-pill{cursor:default;pointer-events:none}
+.readonly-mode .slot{cursor:default}
+.readonly-mode .timeline .slot{padding-bottom:14px}
+
 @media print{
   header{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .toolbar,.slot-actions,#addBtn,.rte-bar,.header-edit-btn,.back-btn,.drag-handle{display:none!important}
@@ -538,6 +558,13 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
     <circle cx="6" cy="8" r="1.2"/><circle cx="10" cy="8" r="1.2"/>
     <circle cx="6" cy="12.5" r="1.2"/><circle cx="10" cy="12.5" r="1.2"/>
   </symbol>
+  <symbol id="ico-eye" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2.2"/>
+  </symbol>
+  <symbol id="ico-link" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6.5 9.5a3 3 0 004.2 0l2-2a3 3 0 00-4.2-4.2l-1 1"/>
+    <path d="M9.5 6.5a3 3 0 00-4.2 0l-2 2a3 3 0 004.2 4.2l1-1"/>
+  </symbol>
 </defs>
 </svg>
 
@@ -598,6 +625,9 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
       <button class="header-edit-btn" onclick="openHeaderSettings()">
         <svg class="icon" width="13" height="13"><use href="#ico-edit"/></svg> 編輯標題
       </button>
+      <span class="readonly-corner-badge">
+        <svg class="icon" width="12" height="12"><use href="#ico-eye"/></svg> 僅供檢視
+      </span>
       <div class="header-inner">
         <div class="header-title">
           <h1 id="projectName">韓內科移展</h1>
@@ -1108,22 +1138,44 @@ const HD_DEFAULTS = {
 /* ══════════════════════════════════════
    BOOT
 ══════════════════════════════════════ */
+let isReadOnlyMode = false;
+let readOnlyNoticeId = null;
+
+function getUrlParam(name){
+  return new URLSearchParams(window.location.search).get(name);
+}
+
 async function bootApp(){
   document.getElementById('loadingOverlay').classList.remove('hide');
   await waitForFirebase();
   document.getElementById('appRoot').classList.add('show');
   document.getElementById('loadingOverlay').classList.add('hide');
-  await goToList();
+  if(isReadOnlyMode && readOnlyNoticeId){
+    await openNotice(readOnlyNoticeId);
+  }else{
+    await goToList();
+  }
 }
 
 window.addEventListener('DOMContentLoaded', ()=>{
-  if(checkAuth()) bootApp();
+  const viewId = getUrlParam('view');
+  if(viewId){
+    // read-only share link: skip password gate entirely
+    isReadOnlyMode = true;
+    readOnlyNoticeId = viewId;
+    document.body.classList.add('readonly-mode');
+    document.getElementById('gateScreen').classList.add('hide');
+    bootApp();
+  }else if(checkAuth()){
+    bootApp();
+  }
 });
 
 /* ══════════════════════════════════════
    LIST VIEW
 ══════════════════════════════════════ */
 async function goToList(){
+  if(isReadOnlyMode) return; // never expose the full notice list from a read-only share link
   currentNoticeId = null;
   document.getElementById('editorView').classList.remove('active');
   document.getElementById('listView').classList.add('active');
@@ -1189,6 +1241,7 @@ function escapeHtml(s){
 function openNcMenu(e, id){
   const menu = document.getElementById('ncMenu');
   menu.innerHTML = `
+    <button onclick="copyShareLink('${id}')">${svgIcon('ico-link',14)} 複製分享連結</button>
     <button onclick="duplicateNotice('${id}')">${svgIcon('ico-copy',14)} 複製通告</button>
     <button class="danger" onclick="confirmDeleteNotice('${id}')">${svgIcon('ico-trash',14)} 刪除通告</button>
   `;
@@ -1196,6 +1249,18 @@ function openNcMenu(e, id){
   menu.style.top = (r.bottom+4+window.scrollY)+'px';
   menu.style.left = Math.min(r.left-110, window.innerWidth-160)+'px';
   menu.classList.add('show');
+}
+function copyShareLink(id){
+  document.getElementById('ncMenu').classList.remove('show');
+  const url = `${window.location.origin}${window.location.pathname}?view=${id}`;
+  const done = ()=> alert('已複製唯讀分享連結：\n' + url + '\n\n此連結免密碼即可開啟，僅供瀏覽，無法修改內容。');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done).catch(()=>{
+      prompt('請手動複製以下唯讀分享連結：', url);
+    });
+  }else{
+    prompt('請手動複製以下唯讀分享連結：', url);
+  }
 }
 document.addEventListener('click', e=>{
   const menu = document.getElementById('ncMenu');
@@ -1306,11 +1371,13 @@ async function openNotice(id){
 
 let saveTimer = null;
 function scheduleSave(){
+  if(isReadOnlyMode) return; // safety net: never persist changes in read-only share mode
   setSaveStatus('saving');
   if(saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(doSaveNotice, 600);
 }
 async function doSaveNotice(){
+  if(isReadOnlyMode) return;
   if(!currentNoticeId) return;
   try{
     await fsSaveNotice(currentNoticeId, {
@@ -1405,7 +1472,7 @@ function render(){
       const seqStr = String(seqMap.get(s.id)||1).padStart(3,'0');
       const dateRangeHTML = s.endDate ? `<div class="date-range">${fmtDateRange(s.date,s.endDate)}</div>` : '';
 
-      html+=`<div class="slot" data-type="${s.type}" data-id="${s.id}" draggable="true">
+      html+=`<div class="slot" data-type="${s.type}" data-id="${s.id}" draggable="${isReadOnlyMode?'false':'true'}">
         <div class="slot-seq">
           <span class="seq-num">${seqStr}</span>
           <span class="drag-handle" title="拖曳排序">${svgIcon('ico-grip',14)}</span>
@@ -1471,6 +1538,7 @@ function ensureOrderFields(){
 let dragSlotId = null;
 
 function attachDragHandlers(){
+  if(isReadOnlyMode) return;
   document.querySelectorAll('.slot').forEach(el=>{
     el.addEventListener('dragstart', e=>{
       dragSlotId = parseInt(el.dataset.id);
@@ -1556,6 +1624,7 @@ function escAttr(s){ return (s||'').replace(/'/g,"\\'"); }
    SLOT MODAL
 ══════════════════════════════════════ */
 function openModal(){
+  if(isReadOnlyMode) return;
   editingId=null;
   document.getElementById('modalTitle').textContent='新增工作安排';
   document.getElementById('f_date').value=new Date().toISOString().slice(0,10);
@@ -1571,6 +1640,7 @@ function openModal(){
   document.getElementById('modalBg').classList.add('open');
 }
 function editSlot(id){
+  if(isReadOnlyMode) return;
   const s=data.find(x=>x.id===id);if(!s)return;
   editingId=id;
   document.getElementById('modalTitle').textContent='編輯工作安排';
@@ -1623,6 +1693,7 @@ function pickFormAssigneeColor(name,color,el){
 }
 
 function saveSlot(){
+  if(isReadOnlyMode) return;
   const date=document.getElementById('f_date').value;
   let endDate=document.getElementById('f_endDate').value;
   const type=document.getElementById('f_type').value;
@@ -1659,6 +1730,7 @@ function nextOrderForDate(date){
   return Math.max(...siblings.map(x=>x.order??0)) + 1;
 }
 function deleteSlot(id){
+  if(isReadOnlyMode) return;
   if(!confirm('確定要刪除？'))return;
   data=data.filter(x=>x.id!==id);
   render();scheduleSave();
@@ -1735,6 +1807,7 @@ function toggleColorPop(mode){
    ASSIGNEE MANAGER MODAL
 ══════════════════════════════════════ */
 function openAssigneeManager(){
+  if(isReadOnlyMode) return;
   const list=document.getElementById('amList');
   const allNames=new Set();
   data.forEach(s=>(s.assignees||[]).forEach(a=>allNames.add(a)));
@@ -1844,6 +1917,7 @@ function applyHeaderCfg(){
 }
 
 function openHeaderSettings(){
+  if(isReadOnlyMode) return;
   document.getElementById('hd_title').value = headerCfg.title;
   document.getElementById('hd_title_font').value = headerCfg.titleFont;
   document.getElementById('hd_title_size').value = headerCfg.titleSize;
