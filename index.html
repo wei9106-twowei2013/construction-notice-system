@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>施工安排通告系統</title>
+<meta name="description" id="metaDescription" content="施工安排通告系統 - 線上施工時間軸管理">
+<meta property="og:title" id="ogTitle" content="施工安排通告系統">
+<meta property="og:description" id="ogDescription" content="點此查看施工安排通告">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -1179,6 +1182,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
 async function goToList(){
   if(isReadOnlyMode) return; // never expose the full notice list from a read-only share link
   currentNoticeId = null;
+  document.title = '施工安排通告系統';
   document.getElementById('editorView').classList.remove('active');
   document.getElementById('listView').classList.add('active');
   document.getElementById('loadingOverlay').classList.remove('hide');
@@ -1906,6 +1910,14 @@ function applyHeaderCfg(){
   document.getElementById('projectSub').textContent = headerCfg.sub;
   document.getElementById('venueDisplay').textContent = headerCfg.venue;
   document.getElementById('dateRangeDisplay').textContent = headerCfg.date;
+  document.title = headerCfg.title ? `${headerCfg.title} - 施工安排通告系統` : '施工安排通告系統';
+  const descText = [headerCfg.title, headerCfg.venue, headerCfg.date].filter(Boolean).join(' ｜ ');
+  const metaDesc = document.getElementById('metaDescription');
+  const ogTitle = document.getElementById('ogTitle');
+  const ogDesc = document.getElementById('ogDescription');
+  if(metaDesc) metaDesc.setAttribute('content', descText || '施工安排通告系統');
+  if(ogTitle) ogTitle.setAttribute('content', headerCfg.title || '施工安排通告系統');
+  if(ogDesc) ogDesc.setAttribute('content', descText || '點此查看施工安排通告');
 
   const root=document.documentElement.style;
   root.setProperty('--f-title-family', headerCfg.titleFont || 'inherit');
