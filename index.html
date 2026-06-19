@@ -104,16 +104,18 @@ a{color:inherit}
 .notice-card .nc-stats{display:flex;gap:14px;margin-top:4px;font-size:.74rem;color:var(--muted)}
 .notice-card .nc-stats b{color:var(--brand);font-size:.9rem}
 .notice-card .nc-updated{font-size:.7rem;color:#b3a3ab;margin-top:auto;padding-top:8px;border-top:1px dashed var(--border)}
-.notice-card .nc-menu-btn{position:absolute;top:14px;right:12px;width:26px;height:26px;
-  border-radius:6px;border:none;background:transparent;color:var(--muted);
-  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s}
-.notice-card .nc-menu-btn:hover{background:var(--bg)}
+.notice-card .nc-menu-btn{position:absolute;top:12px;right:12px;width:32px;height:32px;
+  border-radius:8px;border:none;background:var(--bg);color:var(--brand);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s;
+  z-index:2}
+.notice-card .nc-menu-btn:hover,.notice-card .nc-menu-btn:active{background:#EADDF0}
 .nc-menu{position:fixed;z-index:250;background:#fff;border:1px solid var(--border);
-  border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;min-width:140px;display:none}
+  border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;min-width:180px;display:none}
 .nc-menu.show{display:block}
-.nc-menu button{width:100%;text-align:left;padding:9px 14px;border:none;background:none;
-  font-size:.82rem;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit}
-.nc-menu button:hover{background:var(--bg)}
+.nc-menu button{width:100%;text-align:left;padding:10px 14px;border:none;background:none;
+  font-size:.82rem;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px;
+  font-family:inherit;white-space:nowrap}
+.nc-menu button:hover,.nc-menu button:active{background:var(--bg)}
 .nc-menu button.danger{color:#c62828}
 
 .empty-list{text-align:center;padding:70px 20px;color:var(--muted)}
@@ -1246,8 +1248,15 @@ function openNcMenu(e, id){
     <button class="danger" onclick="confirmDeleteNotice('${id}')">${svgIcon('ico-trash',14)} 刪除通告</button>
   `;
   const r = e.currentTarget.getBoundingClientRect();
-  menu.style.top = (r.bottom+4+window.scrollY)+'px';
-  menu.style.left = Math.min(r.left-110, window.innerWidth-160)+'px';
+  // .nc-menu uses position:fixed, so coordinates are viewport-relative — do NOT add scrollY/scrollX
+  const menuW = 200, menuH = 150; // approx size, enough for boundary checks
+  let top = r.bottom + 4;
+  if(top + menuH > window.innerHeight) top = Math.max(8, r.top - menuH - 4);
+  let left = r.right - menuW; // align menu's right edge with the button's right edge
+  left = Math.min(left, window.innerWidth - menuW - 8);
+  left = Math.max(8, left);
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
   menu.classList.add('show');
 }
 function copyShareLink(id){
