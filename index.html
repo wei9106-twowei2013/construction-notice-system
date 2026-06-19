@@ -232,36 +232,39 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 
 /* left time column */
 .slot-time{position:absolute;left:-188px;top:0;width:128px;
-  text-align:right;padding-right:18px;padding-top:14px}
-.slot-time .time-range{font-size:1.05rem;font-weight:600;color:var(--brand);line-height:1.3}
+  text-align:right;padding-right:18px;padding-top:14px;color:var(--brand)}
+.slot-time .date-range{font-size:.78rem;font-weight:800;color:inherit;
+  background:var(--bg);border:1px solid currentColor;border-radius:5px;
+  padding:1px 7px;display:inline-block;margin-bottom:5px;letter-spacing:.02em}
+.slot-time .time-range{font-size:1.05rem;font-weight:600;color:inherit;line-height:1.3}
 .slot-time .time-range .t-tilde{font-size:.82rem;opacity:.6}
 .slot-time .time-note{font-size:.73rem;color:var(--muted);margin-top:5px;line-height:1.4;font-weight:500}
 
 /* type colours (no dot anymore) */
 .slot[data-type="水電"]{border-left-color:#1AADCE}
-.slot[data-type="水電"] .slot-time .time-range{color:#1AADCE}
+.slot[data-type="水電"] .slot-time{color:#1AADCE}
 .slot[data-type="圖威"]{border-left-color:#E07B2A}
-.slot[data-type="圖威"] .slot-time .time-range{color:#E07B2A}
+.slot[data-type="圖威"] .slot-time{color:#E07B2A}
 .slot[data-type="文保"]{border-left-color:#EC9A9A}
-.slot[data-type="文保"] .slot-time .time-range{color:#D88A8A}
+.slot[data-type="文保"] .slot-time{color:#D88A8A}
 .slot[data-type="木工"]{border-left-color:#7B5E3A}
-.slot[data-type="木工"] .slot-time .time-range{color:#7B5E3A}
+.slot[data-type="木工"] .slot-time{color:#7B5E3A}
 .slot[data-type="油漆"]{border-left-color:#8E24AA}
-.slot[data-type="油漆"] .slot-time .time-range{color:#8E24AA}
+.slot[data-type="油漆"] .slot-time{color:#8E24AA}
 .slot[data-type="大圖輸出"]{border-left-color:#0277BD}
-.slot[data-type="大圖輸出"] .slot-time .time-range{color:#0277BD}
+.slot[data-type="大圖輸出"] .slot-time{color:#0277BD}
 .slot[data-type="貼圖"]{border-left-color:#00897B}
-.slot[data-type="貼圖"] .slot-time .time-range{color:#00897B}
+.slot[data-type="貼圖"] .slot-time{color:#00897B}
 .slot[data-type="美術"]{border-left-color:#F4511E}
-.slot[data-type="美術"] .slot-time .time-range{color:#F4511E}
+.slot[data-type="美術"] .slot-time{color:#F4511E}
 .slot[data-type="多媒體"]{border-left-color:#3949AB}
-.slot[data-type="多媒體"] .slot-time .time-range{color:#3949AB}
+.slot[data-type="多媒體"] .slot-time{color:#3949AB}
 .slot[data-type="清潔"]{border-left-color:#558B2F}
-.slot[data-type="清潔"] .slot-time .time-range{color:#558B2F}
+.slot[data-type="清潔"] .slot-time{color:#558B2F}
 .slot[data-type="燈光"]{border-left-color:#F9A825}
-.slot[data-type="燈光"] .slot-time .time-range{color:#F9A825}
+.slot[data-type="燈光"] .slot-time{color:#F9A825}
 .slot[data-type="其他"]{border-left-color:#4A7C6F}
-.slot[data-type="其他"] .slot-time .time-range{color:#4A7C6F}
+.slot[data-type="其他"] .slot-time{color:#4A7C6F}
 
 .slot-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .type-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 8px;
@@ -389,8 +392,10 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   .timeline::before{display:none}
   .slot{padding-top:12px}
   .slot-time{position:static;width:auto;text-align:left;padding:0 0 8px 0;
-    display:flex;align-items:baseline;gap:8px;border-bottom:1px dashed var(--border);margin-bottom:10px}
-  .slot-time .time-note{margin-top:0}
+    display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+    border-bottom:1px dashed var(--border);margin-bottom:10px}
+  .slot-time .time-note{margin-top:0;flex-basis:100%}
+  .slot-time .date-range{margin-bottom:0}
   .slot-seq{position:absolute;left:auto;right:14px;top:14px;width:auto;
     flex-direction:row-reverse;gap:6px}
 
@@ -655,26 +660,30 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
     <div class="modal-body">
       <div class="field-row">
         <div class="field">
-          <label>日期</label>
+          <label>開始日期</label>
           <input type="date" id="f_date">
         </div>
         <div class="field">
-          <label>工種</label>
-          <select id="f_type">
-            <option value="水電">水電</option>
-            <option value="圖威">圖威</option>
-            <option value="文保">文保</option>
-            <option value="木工">木工</option>
-            <option value="油漆">油漆</option>
-            <option value="大圖輸出">大圖輸出</option>
-            <option value="貼圖">貼圖</option>
-            <option value="美術">美術</option>
-            <option value="多媒體">多媒體</option>
-            <option value="清潔">清潔</option>
-            <option value="燈光">燈光</option>
-            <option value="其他">其他</option>
-          </select>
+          <label>結束日期（跨日工作才填，可留空）</label>
+          <input type="date" id="f_endDate">
         </div>
+      </div>
+      <div class="field">
+        <label>工種</label>
+        <select id="f_type">
+          <option value="水電">水電</option>
+          <option value="圖威">圖威</option>
+          <option value="文保">文保</option>
+          <option value="木工">木工</option>
+          <option value="油漆">油漆</option>
+          <option value="大圖輸出">大圖輸出</option>
+          <option value="貼圖">貼圖</option>
+          <option value="美術">美術</option>
+          <option value="多媒體">多媒體</option>
+          <option value="清潔">清潔</option>
+          <option value="燈光">燈光</option>
+          <option value="其他">其他</option>
+        </select>
       </div>
       <div class="field-row">
         <div class="field">
@@ -1288,6 +1297,16 @@ function svgIcon(id,size=14){
   return `<svg class="icon" width="${size}" height="${size}"><use href="#${id}"/></svg>`;
 }
 
+/* format a multi-day span like "7/21～25" (same month) or "7/21～8/3" (crosses month) */
+function fmtDateRange(startStr, endStr){
+  const a=new Date(startStr+'T00:00:00');
+  const b=new Date(endStr+'T00:00:00');
+  const sameMonth = a.getMonth()===b.getMonth() && a.getFullYear()===b.getFullYear();
+  const left = `${a.getMonth()+1}/${a.getDate()}`;
+  const right = sameMonth ? `${b.getDate()}` : `${b.getMonth()+1}/${b.getDate()}`;
+  return `${left}～${right}`;
+}
+
 /* ══════════════════════════════════════
    RENDER (editor slots)
 ══════════════════════════════════════ */
@@ -1343,6 +1362,7 @@ function render(){
       const timeNoteHTML=s.timeNote?`<div class="time-note">${escapeHtml(s.timeNote)}</div>`:'';
       const timeLabel=s.end?`${s.start}<span class="t-tilde"> ~ </span>${s.end}`:s.start;
       const seqStr = String(seqMap.get(s.id)||1).padStart(3,'0');
+      const dateRangeHTML = s.endDate ? `<div class="date-range">${fmtDateRange(s.date,s.endDate)}</div>` : '';
 
       html+=`<div class="slot" data-type="${s.type}" data-id="${s.id}" draggable="true">
         <div class="slot-seq">
@@ -1350,6 +1370,7 @@ function render(){
           <span class="drag-handle" title="拖曳排序">${svgIcon('ico-grip',14)}</span>
         </div>
         <div class="slot-time">
+          ${dateRangeHTML}
           <div class="time-range">${timeLabel}</div>
           ${timeNoteHTML}
         </div>
@@ -1497,6 +1518,7 @@ function openModal(){
   editingId=null;
   document.getElementById('modalTitle').textContent='新增工作安排';
   document.getElementById('f_date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('f_endDate').value='';
   document.getElementById('f_type').value='水電';
   document.getElementById('f_start').value='08:00';
   document.getElementById('f_end').value='';
@@ -1512,6 +1534,7 @@ function editSlot(id){
   editingId=id;
   document.getElementById('modalTitle').textContent='編輯工作安排';
   document.getElementById('f_date').value=s.date;
+  document.getElementById('f_endDate').value=s.endDate||'';
   document.getElementById('f_type').value=s.type;
   document.getElementById('f_start').value=s.start;
   document.getElementById('f_end').value=s.end||'';
@@ -1546,6 +1569,7 @@ function renderAssigneeColorPickers(names){
 
 function saveSlot(){
   const date=document.getElementById('f_date').value;
+  let endDate=document.getElementById('f_endDate').value;
   const type=document.getElementById('f_type').value;
   const start=document.getElementById('f_start').value;
   const end=document.getElementById('f_end').value;
@@ -1554,6 +1578,8 @@ function saveSlot(){
   const ar=document.getElementById('f_assignees').value;
   const venue=document.getElementById('f_venue').value.trim();
   if(!date||!start||!desc){alert('請填寫日期、開始時間與工作內容');return;}
+  if(endDate && endDate<date){alert('結束日期不能早於開始日期');return;}
+  if(endDate===date) endDate=''; // same day -> not a multi-day span
   const assignees=ar.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
   assignees.forEach(a=>assigneeColor(a));
 
@@ -1563,11 +1589,11 @@ function saveSlot(){
       const prev=data[i];
       const dateChanged = prev.date !== date;
       const order = dateChanged ? nextOrderForDate(date) : (prev.order??0);
-      data[i]={id:editingId,date,type,start,end,timeNote,desc,assignees,venue,order};
+      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,order};
     }
   }else{
     const order = nextOrderForDate(date);
-    data.push({id:nextId,date,type,start,end,timeNote,desc,assignees,venue,order});
+    data.push({id:nextId,date,endDate,type,start,end,timeNote,desc,assignees,venue,order});
     nextId++;
   }
   closeModal();render();scheduleSave();
