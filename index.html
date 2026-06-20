@@ -254,9 +254,9 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
 .gantt-table th{background:#f0f0f0;font-size:1rem;font-weight:800;color:#222;
   padding:11px 10px;text-align:center;white-space:nowrap}
 .gantt-label-head{text-align:left!important;background:#f0f0f0!important;padding:11px 12px!important;font-size:1rem!important}
-.gantt-idx-head{padding:11px 8px!important}
-.gantt-idx-cell{padding:9px 8px;font-size:.9rem;font-weight:800;text-align:center;
-  background:#fafafa;white-space:nowrap}
+.gantt-idx-head{padding:11px 16px!important}
+.gantt-idx-cell{padding:9px 16px;font-size:.9rem;font-weight:800;text-align:center;
+  background:#fafafa;white-space:nowrap;color:#999}
 .gantt-label-cell{padding:0;font-size:.78rem;font-weight:700;color:#222;
   white-space:nowrap;background:#fafafa;text-align:left}
 .gantt-label-cell .glc-inner{padding:9px 12px}
@@ -264,13 +264,11 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
 .gantt-label-cell .glc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .gantt-label-cell .glc-desc{font-size:.7rem;font-weight:400;color:#777;white-space:nowrap}
 .gantt-cell{height:42px;min-width:64px;position:relative}
-.gantt-bar-cell{padding:6px 5px}
-.gantt-bar{height:100%;border-radius:20px;position:relative;
+.gantt-bar-cell{padding:14px 5px}
+.gantt-bar{height:100%;border-radius:14px;position:relative;
   display:flex;align-items:center;padding:0 16px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
 .gantt-bar-label{font-size:.72rem;font-weight:700;color:#fff;
-  white-space:nowrap;text-align:center;padding-right:20px}
-.gantt-bar-knob{position:absolute;right:5px;top:50%;transform:translateY(-50%);
-  width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);flex-shrink:0}
+  white-space:nowrap;text-align:center}
 .gantt-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
 .gantt-legend-item{display:flex;align-items:center;gap:5px;font-size:.72rem;color:#555}
 .gantt-legend-dot{width:9px;height:9px;border-radius:50%}
@@ -2190,7 +2188,6 @@ function buildGanttHtml(){
       cellsHtml += `<td class="gantt-cell gantt-bar-cell" colspan="${span}">
         <div class="gantt-bar" style="background:${cfg.color}">
           <span class="gantt-bar-label">${escapeHtml(labelText)}</span>
-          <span class="gantt-bar-knob"></span>
         </div>
       </td>`;
       for(let wi=lastIdx+1;wi<weeks.length;wi++) cellsHtml += `<td class="gantt-cell"></td>`;
