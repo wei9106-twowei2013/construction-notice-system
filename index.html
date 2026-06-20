@@ -240,32 +240,44 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
   font-size:.82rem;color:var(--text);cursor:pointer;font-family:inherit}
 .gantt-export-menu button:hover{background:var(--bg)}
 
-/* ── Gantt chart (offscreen render target for export) ── */
+/* ── Gantt chart (offscreen render target for export) ──
+   Redesigned as a "floating capsule bar" infographic style: each row is
+   an absolutely-positioned pill-shaped bar over a striped background,
+   with a numbered index on the left and a month ruler along the bottom —
+   instead of a traditional gridded table. */
 .gantt-render-root{position:fixed;left:-99999px;top:0;background:#fff;width:max-content}
-.gantt-wrap{padding:28px 32px;background:#fff;font-family:'Noto Sans TC','Microsoft JhengHei',sans-serif}
-.gantt-header{margin-bottom:16px}
-.gantt-header h2{font-size:1.3rem;font-weight:900;color:var(--brand-dark);margin-bottom:4px}
-.gantt-header p{font-size:.78rem;color:var(--muted)}
-.gantt-table{border-collapse:collapse;border:1px solid #d8d8d8;table-layout:auto}
-.gantt-table th,.gantt-table td{border:1px solid #d8d8d8;padding:0;vertical-align:middle}
-.gantt-table th{background:#f0f0f0;font-size:1rem;font-weight:800;color:#222;
-  padding:11px 10px;text-align:center;white-space:nowrap}
-.gantt-label-head{text-align:left!important;background:#f0f0f0!important;padding:11px 12px!important;font-size:1rem!important}
-.gantt-label-cell{padding:0;font-size:.78rem;font-weight:700;color:#222;
-  white-space:nowrap;background:#fafafa;text-align:left}
-.gantt-label-cell .glc-inner{padding:9px 12px}
-.gantt-label-cell .glc-type{display:flex;align-items:center;gap:5px;margin-bottom:2px;white-space:nowrap}
-.gantt-label-cell .glc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.gantt-label-cell .glc-desc{font-size:.7rem;font-weight:400;color:#777;white-space:nowrap}
-.gantt-cell{height:42px;min-width:64px;position:relative}
-.gantt-bar-cell{padding:5px 4px}
-.gantt-bar{height:100%;border-radius:0;
-  display:flex;align-items:center;justify-content:center;padding:0 10px}
-.gantt-bar-label{font-size:.72rem;font-weight:400;color:#fff;
-  white-space:nowrap;text-align:center}
-.gantt-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
-.gantt-legend-item{display:flex;align-items:center;gap:5px;font-size:.72rem;color:#555}
-.gantt-legend-dot{width:9px;height:9px;border-radius:50%}
+.gantt-wrap{padding:36px 40px;background:#fff;font-family:'Noto Sans TC','Microsoft JhengHei',sans-serif;
+  width:1180px}
+.gantt-header{margin-bottom:22px;padding-bottom:12px}
+.gantt-header h2{font-size:1.6rem;font-weight:900;color:var(--brand-dark);margin-bottom:5px}
+.gantt-header p{font-size:.85rem;color:var(--muted)}
+
+.gantt-chart{position:relative}
+.gantt-row{position:relative;height:52px;border-radius:10px;background:#f4f2f5;
+  margin-bottom:8px;display:flex;align-items:center}
+.gantt-row-idx{position:absolute;left:-46px;top:50%;transform:translateY(-50%);
+  font-size:1.05rem;font-weight:800;width:34px;text-align:right}
+.gantt-row-track{position:relative;flex:1;height:100%}
+.gantt-bar{position:absolute;top:6px;bottom:6px;border-radius:18px;
+  display:flex;align-items:center;padding:0 18px;overflow:hidden;
+  box-shadow:0 2px 4px rgba(0,0,0,.08)}
+.gantt-bar-label{font-size:.8rem;font-weight:700;color:#fff;white-space:nowrap}
+.gantt-bar-knob{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.gantt-row-aside{position:absolute;top:50%;transform:translateY(-50%);
+  font-size:.76rem;font-style:italic;color:#888;white-space:nowrap;max-width:340px;
+  overflow:hidden;text-overflow:ellipsis}
+.gantt-row-aside.aside-left{left:18px}
+.gantt-row-aside.aside-right{right:18px;text-align:right}
+
+.gantt-ruler{position:relative;height:30px;margin-top:14px;margin-left:0}
+.gantt-ruler-tick{position:absolute;top:8px;font-size:.78rem;font-weight:700;color:#555;
+  transform:rotate(-28deg);transform-origin:left top;white-space:nowrap}
+
+.gantt-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px;padding-top:14px;
+  border-top:1px solid #ECECEC}
+.gantt-legend-item{display:flex;align-items:center;gap:6px;font-size:.76rem;color:#555;font-weight:600}
+.gantt-legend-dot{width:10px;height:10px;border-radius:50%}
 
 /* ── Main ── */
 main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
@@ -2118,8 +2130,10 @@ document.addEventListener('click', e=>{
 
 /* Build Monday-start week buckets spanning the full range of every slot's
    date (and endDate, for multi-day spans). Returns [{start:Date, end:Date}] */
-function buildGanttWeeks(){
-  if(!data.length) return [];
+/* Compute the overall day-range the chart should cover, from the
+   earliest slot.date to the latest slot.endDate (or date if no span). */
+function buildGanttDayRange(){
+  if(!data.length) return null;
   let minD = null, maxD = null;
   data.forEach(s=>{
     const start = new Date(s.date+'T00:00:00');
@@ -2127,81 +2141,78 @@ function buildGanttWeeks(){
     if(!minD || start<minD) minD = start;
     if(!maxD || end>maxD) maxD = end;
   });
-  // snap minD back to the Monday of its week
-  const day = minD.getDay(); // 0=Sun..6=Sat
-  const diffToMonday = day===0 ? 6 : day-1;
-  const weekStart0 = new Date(minD);
-  weekStart0.setDate(weekStart0.getDate()-diffToMonday);
-
-  const weeks = [];
-  let cursor = new Date(weekStart0);
-  while(cursor <= maxD){
-    const wEnd = new Date(cursor);
-    wEnd.setDate(wEnd.getDate()+6);
-    weeks.push({ start:new Date(cursor), end:wEnd });
-    cursor.setDate(cursor.getDate()+7);
-  }
-  return weeks;
+  // pad a few days on each side so bars don't touch the chart edges
+  const rangeStart = new Date(minD); rangeStart.setDate(rangeStart.getDate()-1);
+  const rangeEnd = new Date(maxD); rangeEnd.setDate(rangeEnd.getDate()+2);
+  return { rangeStart, rangeEnd, minD, maxD };
 }
 function fmtMD(d){ return `${d.getMonth()+1}/${d.getDate()}`; }
+function daysBetween(a,b){ return (b-a)/86400000; }
+
+function buildGanttMonthTicks(rangeStart, rangeEnd, totalDays){
+  // one tick per calendar month boundary covered by the range
+  const ticks = [];
+  const cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+  while(cur <= rangeEnd){
+    if(cur >= rangeStart){
+      const pct = (daysBetween(rangeStart, cur)/totalDays)*100;
+      const label = `${cur.getMonth()+1}月`;
+      ticks.push({ pct, label });
+    }
+    cur.setMonth(cur.getMonth()+1);
+  }
+  return ticks;
+}
 
 function buildGanttHtml(){
-  const weeks = buildGanttWeeks();
-  if(!weeks.length){
+  const range = buildGanttDayRange();
+  if(!range){
     return `<div class="gantt-wrap"><p>目前沒有工作安排，無法產生甘特圖。</p></div>`;
   }
+  const { rangeStart, rangeEnd } = range;
+  const totalDays = Math.max(1, daysBetween(rangeStart, rangeEnd));
+
   const rows = [...data].sort((a,b)=>{
     if(a.date!==b.date) return a.date.localeCompare(b.date);
     return (a.order??0)-(b.order??0);
   });
 
-  const headerCells = weeks.map(w=>`<th>${fmtMD(w.start)}~${fmtMD(w.end)}</th>`).join('');
-
-  const bodyRows = rows.map(s=>{
+  const rowsHtml = rows.map((s,i)=>{
     const cfg = TYPE_CFG[s.type] || TYPE_CFG['其他'];
     const startD = new Date(s.date+'T00:00:00');
-    const endD = s.endDate ? new Date(s.endDate+'T00:00:00') : startD;
-
-    // find the first/last week index this slot overlaps, so the bar can
-    // be rendered as ONE merged cell (colspan) instead of one <td> per week
-    let firstIdx = -1, lastIdx = -1;
-    weeks.forEach((w,i)=>{
-      if(startD <= w.end && endD >= w.start){
-        if(firstIdx===-1) firstIdx = i;
-        lastIdx = i;
-      }
-    });
+    const endD = s.endDate ? new Date(s.endDate+'T00:00:00') : new Date(startD.getTime()+86400000*0.6);
+    // single-day items still get a visible minimum-width bar
+    const barStartPct = (daysBetween(rangeStart, startD)/totalDays)*100;
+    const rawWidthDays = Math.max(daysBetween(startD, endD), 0.6);
+    const barWidthPct = (rawWidthDays/totalDays)*100;
 
     const labelText = spaceNumberedItems(stripHtmlToText(s.desc||'')) || s.type;
-    let cellsHtml = '';
-    if(firstIdx===-1){
-      // shouldn't normally happen, but fall back to one empty cell per week
-      cellsHtml = weeks.map(()=>`<td class="gantt-cell"></td>`).join('');
-    }else{
-      // empty cells before the bar
-      for(let i=0;i<firstIdx;i++) cellsHtml += `<td class="gantt-cell"></td>`;
-      // the merged bar cell
-      const span = lastIdx-firstIdx+1;
-      cellsHtml += `<td class="gantt-cell gantt-bar-cell" colspan="${span}">
-        <div class="gantt-bar" style="background:${cfg.color}">
-          <span class="gantt-bar-label">${escapeHtml(labelText)}</span>
-        </div>
-      </td>`;
-      // empty cells after the bar
-      for(let i=lastIdx+1;i<weeks.length;i++) cellsHtml += `<td class="gantt-cell"></td>`;
-    }
+    const dateLabel = s.endDate ? `${fmtMD(startD)} - ${fmtMD(endD)}` : fmtMD(startD);
+    const idxStr = String(i+1).padStart(2,'0');
 
-    const descText = spaceNumberedItems(stripHtmlToText(s.desc||''));
-    return `<tr>
-      <td class="gantt-label-cell">
-        <div class="glc-inner">
-          <div class="glc-type"><span class="glc-dot" style="background:${cfg.color}"></span>${s.type}</div>
-          <div class="glc-desc">${escapeHtml(descText)}</div>
+    // alternate placement of the descriptive aside text: opposite side
+    // of where the bar sits, so it never overlaps the bar itself
+    const barIsLeftHalf = barStartPct < 35;
+    const asideClass = barIsLeftHalf ? 'aside-right' : 'aside-left';
+    const descFull = spaceNumberedItems(stripHtmlToText(s.desc||''));
+    const venueOrDesc = s.venue ? escapeHtml(s.venue) : '';
+
+    return `<div class="gantt-row">
+      <div class="gantt-row-idx" style="color:${cfg.color}">${idxStr}</div>
+      <div class="gantt-row-track">
+        ${venueOrDesc ? `<div class="gantt-row-aside ${asideClass}">${venueOrDesc}</div>` : ''}
+        <div class="gantt-bar" style="left:${barStartPct}%;width:${barWidthPct}%;background:${cfg.color}">
+          <span class="gantt-bar-label">${escapeHtml(s.type)}・${escapeHtml(dateLabel)}</span>
+          <span class="gantt-bar-knob"></span>
         </div>
-      </td>
-      ${cellsHtml}
-    </tr>`;
+      </div>
+    </div>`;
   }).join('');
+
+  const ticks = buildGanttMonthTicks(rangeStart, rangeEnd, totalDays);
+  const tickHtml = ticks.map(t=>
+    `<div class="gantt-ruler-tick" style="left:${t.pct}%">${t.label}</div>`
+  ).join('');
 
   const usedTypes = [...new Set(rows.map(s=>s.type))];
   const legendHtml = usedTypes.map(t=>{
@@ -2214,10 +2225,10 @@ function buildGanttHtml(){
       <h2>${escapeHtml(headerCfg?.title||'施工安排')} － 甘特圖</h2>
       <p>${escapeHtml(headerCfg?.venue||'')}${headerCfg?.venue&&headerCfg?.date?' ｜ ':''}${escapeHtml(headerCfg?.date||'')}</p>
     </div>
-    <table class="gantt-table">
-      <thead><tr><th class="gantt-label-cell gantt-label-head">工作項目</th>${headerCells}</tr></thead>
-      <tbody>${bodyRows}</tbody>
-    </table>
+    <div class="gantt-chart" style="padding-left:46px">
+      ${rowsHtml}
+      <div class="gantt-ruler">${tickHtml}</div>
+    </div>
     <div class="gantt-legend">${legendHtml}</div>
   </div>`;
 }
