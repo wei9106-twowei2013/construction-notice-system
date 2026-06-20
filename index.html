@@ -246,22 +246,22 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
 .gantt-header{margin-bottom:16px}
 .gantt-header h2{font-size:1.3rem;font-weight:900;color:var(--brand-dark);margin-bottom:4px}
 .gantt-header p{font-size:.78rem;color:var(--muted)}
-.gantt-table{border-collapse:collapse;border:1px solid #ccc}
-.gantt-table th,.gantt-table td{border:1px solid #ccc;padding:0;vertical-align:middle}
-.gantt-table th{background:#f0f0f0;font-size:.72rem;font-weight:700;color:#333;
-  padding:8px 6px;text-align:center;white-space:nowrap}
-.gantt-label-cell{padding:8px 12px;font-size:.76rem;font-weight:700;color:#222;
-  white-space:nowrap;background:#fafafa;text-align:left;min-width:160px}
-.gantt-label-cell .glc-type{display:inline-flex;align-items:center;gap:5px;margin-bottom:2px}
+.gantt-table{border-collapse:collapse;border:1px solid #d8d8d8;table-layout:auto}
+.gantt-table th,.gantt-table td{border:1px solid #d8d8d8;padding:0;vertical-align:middle}
+.gantt-table th{background:#f0f0f0;font-size:.74rem;font-weight:700;color:#333;
+  padding:9px 10px;text-align:center;white-space:nowrap}
+.gantt-label-head{text-align:left!important;background:#f0f0f0!important}
+.gantt-label-cell{padding:9px 14px;font-size:.78rem;font-weight:700;color:#222;
+  white-space:nowrap;background:#fafafa;text-align:left}
+.gantt-label-cell .glc-type{display:flex;align-items:center;gap:5px;margin-bottom:2px;white-space:nowrap}
 .gantt-label-cell .glc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.gantt-label-cell .glc-desc{font-size:.68rem;font-weight:400;color:#777;white-space:normal;max-width:220px}
-.gantt-cell{width:34px;height:38px;position:relative;background:repeating-linear-gradient(
-  to bottom,#fff,#fff 100%)}
-.gantt-cell.weekend-ish{background:#f6f6f6}
-.gantt-bar{position:absolute;top:6px;bottom:6px;left:2px;right:2px;border-radius:4px;
-  display:flex;align-items:center;justify-content:center;overflow:hidden}
-.gantt-bar-label{font-size:.62rem;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25);
-  white-space:nowrap;padding:0 4px}
+.gantt-label-cell .glc-desc{font-size:.7rem;font-weight:400;color:#777;white-space:nowrap}
+.gantt-cell{height:42px;min-width:64px;position:relative}
+.gantt-bar-cell{padding:5px 4px}
+.gantt-bar{height:100%;border-radius:5px;
+  display:flex;align-items:center;justify-content:center;padding:0 10px}
+.gantt-bar-label{font-size:.72rem;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25);
+  white-space:nowrap;text-align:center}
 .gantt-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
 .gantt-legend-item{display:flex;align-items:center;gap:5px;font-size:.72rem;color:#555}
 .gantt-legend-dot{width:9px;height:9px;border-radius:50%}
@@ -2161,24 +2161,42 @@ function buildGanttHtml(){
     const startD = new Date(s.date+'T00:00:00');
     const endD = s.endDate ? new Date(s.endDate+'T00:00:00') : startD;
 
-    const cells = weeks.map(w=>{
-      const overlaps = startD <= w.end && endD >= w.start;
-      if(!overlaps) return `<td class="gantt-cell"></td>`;
-      // is this the week containing the bar's start? -> show the label here
-      const isStartWeek = startD >= w.start && startD <= w.end;
-      const labelHtml = isStartWeek
-        ? `<span class="gantt-bar-label">${escapeHtml(s.desc ? stripHtmlToText(s.desc) : s.type)}</span>`
-        : '';
-      return `<td class="gantt-cell"><div class="gantt-bar" style="background:${cfg.color}">${labelHtml}</div></td>`;
-    }).join('');
+    // find the first/last week index this slot overlaps, so the bar can
+    // be rendered as ONE merged cell (colspan) instead of one <td> per week
+    let firstIdx = -1, lastIdx = -1;
+    weeks.forEach((w,i)=>{
+      if(startD <= w.end && endD >= w.start){
+        if(firstIdx===-1) firstIdx = i;
+        lastIdx = i;
+      }
+    });
+
+    const labelText = stripHtmlToText(s.desc||'') || s.type;
+    let cellsHtml = '';
+    if(firstIdx===-1){
+      // shouldn't normally happen, but fall back to one empty cell per week
+      cellsHtml = weeks.map(()=>`<td class="gantt-cell"></td>`).join('');
+    }else{
+      // empty cells before the bar
+      for(let i=0;i<firstIdx;i++) cellsHtml += `<td class="gantt-cell"></td>`;
+      // the merged bar cell
+      const span = lastIdx-firstIdx+1;
+      cellsHtml += `<td class="gantt-cell gantt-bar-cell" colspan="${span}">
+        <div class="gantt-bar" style="background:${cfg.color}">
+          <span class="gantt-bar-label">${escapeHtml(labelText)}</span>
+        </div>
+      </td>`;
+      // empty cells after the bar
+      for(let i=lastIdx+1;i<weeks.length;i++) cellsHtml += `<td class="gantt-cell"></td>`;
+    }
 
     const descText = stripHtmlToText(s.desc||'');
     return `<tr>
       <td class="gantt-label-cell">
         <div class="glc-type"><span class="glc-dot" style="background:${cfg.color}"></span>${s.type}</div>
-        <div class="glc-desc">${escapeHtml(descText.slice(0,30))}${descText.length>30?'…':''}</div>
+        <div class="glc-desc">${escapeHtml(descText)}</div>
       </td>
-      ${cells}
+      ${cellsHtml}
     </tr>`;
   }).join('');
 
@@ -2194,7 +2212,7 @@ function buildGanttHtml(){
       <p>${escapeHtml(headerCfg?.venue||'')}${headerCfg?.venue&&headerCfg?.date?' ｜ ':''}${escapeHtml(headerCfg?.date||'')}</p>
     </div>
     <table class="gantt-table">
-      <thead><tr><th class="gantt-label-cell" style="background:#f0f0f0">工作項目</th>${headerCells}</tr></thead>
+      <thead><tr><th class="gantt-label-cell gantt-label-head">工作項目</th>${headerCells}</tr></thead>
       <tbody>${bodyRows}</tbody>
     </table>
     <div class="gantt-legend">${legendHtml}</div>
@@ -2236,16 +2254,28 @@ async function exportGantt(format){
     }else{
       const { jsPDF } = window.jspdf;
       const imgData = canvas.toDataURL('image/jpeg',0.93);
-      // landscape page sized to match the chart's aspect ratio
       const pxToMm = 0.264583 / 2; // canvas was rendered at scale:2
-      const wMm = canvas.width * pxToMm;
-      const hMm = canvas.height * pxToMm;
-      const pdf = new jsPDF({
-        orientation: wMm >= hMm ? 'landscape' : 'portrait',
-        unit: 'mm',
-        format: [wMm, hMm],
-      });
-      pdf.addImage(imgData, 'JPEG', 0, 0, wMm, hMm);
+      const chartWmm = canvas.width * pxToMm;
+      const chartHmm = canvas.height * pxToMm;
+
+      // Always print landscape. Pick A4 landscape normally; switch to A3
+      // landscape if the chart is too wide to fit A4 at a readable scale.
+      const A4 = { w:297, h:210 };
+      const A3 = { w:420, h:297 };
+      const margin = 10;
+      const fitsA4 = (chartWmm * ((A4.h-margin*2)/chartHmm)) <= (A4.w-margin*2) || chartWmm <= (A4.w-margin*2);
+      const page = fitsA4 ? A4 : A3;
+
+      const availW = page.w - margin*2;
+      const availH = page.h - margin*2;
+      const scale = Math.min(availW/chartWmm, availH/chartHmm, 1); // never upscale beyond original
+      const drawW = chartWmm*scale;
+      const drawH = chartHmm*scale;
+      const offsetX = (page.w - drawW)/2;
+      const offsetY = (page.h - drawH)/2;
+
+      const pdf = new jsPDF({ orientation:'landscape', unit:'mm', format:[page.w, page.h] });
+      pdf.addImage(imgData, 'JPEG', offsetX, offsetY, drawW, drawH);
       pdf.save(`${fileBase}.pdf`);
     }
   }catch(e){
