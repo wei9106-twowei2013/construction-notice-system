@@ -266,8 +266,9 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
 .gantt-cell{height:42px;min-width:64px;position:relative}
 .gantt-bar-cell{padding:0 5px}
 .gantt-bar{height:22px;margin-top:10px;border-radius:11px;position:relative;
-  display:flex;align-items:center;padding:0 16px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
-.gantt-bar-label{font-size:.72rem;font-weight:600;color:#fff;line-height:1;
+  box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.gantt-bar-label{position:absolute;top:50%;left:16px;right:16px;transform:translateY(-50%);
+  font-size:.72rem;font-weight:500;color:#fff;line-height:1;
   white-space:nowrap;text-align:center}
 .gantt-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
 .gantt-legend-item{display:flex;align-items:center;gap:5px;font-size:.72rem;color:#555}
