@@ -8,6 +8,7 @@
 <meta property="og:title" id="ogTitle" content="施工安排通告系統">
 <meta property="og:description" id="ogDescription" content="點此查看施工安排通告">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
@@ -228,6 +229,42 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
 .save-status.saving .dot{background:#ffca28;animation:pulse 1s infinite}
 .save-status.error .dot{background:#ef5350}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* gantt export dropdown */
+.gantt-export-wrap{position:relative;display:inline-block}
+.gantt-export-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:60;
+  background:#fff;border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;min-width:120px}
+.gantt-export-menu.show{display:block}
+.gantt-export-menu button{width:100%;text-align:left;padding:9px 14px;border:none;background:none;
+  font-size:.82rem;color:var(--text);cursor:pointer;font-family:inherit}
+.gantt-export-menu button:hover{background:var(--bg)}
+
+/* ── Gantt chart (offscreen render target for export) ── */
+.gantt-render-root{position:fixed;left:-99999px;top:0;background:#fff;width:max-content}
+.gantt-wrap{padding:28px 32px;background:#fff;font-family:'Noto Sans TC','Microsoft JhengHei',sans-serif}
+.gantt-header{margin-bottom:16px}
+.gantt-header h2{font-size:1.3rem;font-weight:900;color:var(--brand-dark);margin-bottom:4px}
+.gantt-header p{font-size:.78rem;color:var(--muted)}
+.gantt-table{border-collapse:collapse;border:1px solid #ccc}
+.gantt-table th,.gantt-table td{border:1px solid #ccc;padding:0;vertical-align:middle}
+.gantt-table th{background:#f0f0f0;font-size:.72rem;font-weight:700;color:#333;
+  padding:8px 6px;text-align:center;white-space:nowrap}
+.gantt-label-cell{padding:8px 12px;font-size:.76rem;font-weight:700;color:#222;
+  white-space:nowrap;background:#fafafa;text-align:left;min-width:160px}
+.gantt-label-cell .glc-type{display:inline-flex;align-items:center;gap:5px;margin-bottom:2px}
+.gantt-label-cell .glc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.gantt-label-cell .glc-desc{font-size:.68rem;font-weight:400;color:#777;white-space:normal;max-width:220px}
+.gantt-cell{width:34px;height:38px;position:relative;background:repeating-linear-gradient(
+  to bottom,#fff,#fff 100%)}
+.gantt-cell.weekend-ish{background:#f6f6f6}
+.gantt-bar{position:absolute;top:6px;bottom:6px;left:2px;right:2px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.gantt-bar-label{font-size:.62rem;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25);
+  white-space:nowrap;padding:0 4px}
+.gantt-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.gantt-legend-item{display:flex;align-items:center;gap:5px;font-size:.72rem;color:#555}
+.gantt-legend-dot{width:9px;height:9px;border-radius:50%}
 
 /* ── Main ── */
 main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
@@ -575,6 +612,10 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   <symbol id="ico-eye" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2.2"/>
   </symbol>
+  <symbol id="ico-gantt" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 3h7M2 6h4M2 9h9M2 12h5"/>
+    <path d="M2 3v10" stroke-width="1.2" opacity=".4"/>
+  </symbol>
   <symbol id="ico-link" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M6.5 9.5a3 3 0 004.2 0l2-2a3 3 0 00-4.2-4.2l-1 1"/>
     <path d="M9.5 6.5a3 3 0 00-4.2 0l-2 2a3 3 0 004.2 4.2l1-1"/>
@@ -692,6 +733,19 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
           <button class="btn btn-ghost" onclick="exportJPG()">
             <svg class="icon" width="14" height="14"><use href="#ico-jpg"/></svg> 匯出JPG
           </button>
+          <div class="gantt-export-wrap">
+            <button class="btn btn-ghost" onclick="toggleGanttMenu(event)">
+              <svg class="icon" width="14" height="14"><use href="#ico-gantt"/></svg> 甘特圖
+            </button>
+            <div class="gantt-export-menu" id="ganttExportMenu">
+              <button onclick="exportGantt('jpg')">
+                匯出 JPG
+              </button>
+              <button onclick="exportGantt('pdf')">
+                匯出 PDF
+              </button>
+            </div>
+          </div>
           <span class="save-status" id="saveStatus"><span class="dot"></span><span id="saveStatusText">已儲存</span></span>
         </div>
       </div>
@@ -1013,9 +1067,12 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
     <svg width="36" height="36" fill="none" stroke="#8B1A5C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 36 36">
       <circle cx="18" cy="18" r="14"/><path d="M18 10v10M13 16l5 5 5-5"/>
     </svg>
-    <p>正在產生 JPG，請稍候…</p>
+    <p id="exportHintText">正在產生 JPG，請稍候…</p>
   </div>
 </div>
+
+<!-- offscreen gantt chart render target -->
+<div class="gantt-render-root" id="ganttRenderRoot"></div>
 
 <script>
 /* ══════════════════════════════════════
@@ -2044,6 +2101,160 @@ function exportJPG(){
       alert('JPG 匯出失敗，請稍後再試');
     });
   },200);
+}
+
+/* ══════════════════════════════════════
+   GANTT CHART (weekly table-style, JPG/PDF export)
+══════════════════════════════════════ */
+function toggleGanttMenu(e){
+  e.stopPropagation();
+  document.getElementById('ganttExportMenu').classList.toggle('show');
+}
+document.addEventListener('click', e=>{
+  const m = document.getElementById('ganttExportMenu');
+  if(m.classList.contains('show') && !e.target.closest('.gantt-export-wrap')) m.classList.remove('show');
+});
+
+/* Build Monday-start week buckets spanning the full range of every slot's
+   date (and endDate, for multi-day spans). Returns [{start:Date, end:Date}] */
+function buildGanttWeeks(){
+  if(!data.length) return [];
+  let minD = null, maxD = null;
+  data.forEach(s=>{
+    const start = new Date(s.date+'T00:00:00');
+    const end = s.endDate ? new Date(s.endDate+'T00:00:00') : start;
+    if(!minD || start<minD) minD = start;
+    if(!maxD || end>maxD) maxD = end;
+  });
+  // snap minD back to the Monday of its week
+  const day = minD.getDay(); // 0=Sun..6=Sat
+  const diffToMonday = day===0 ? 6 : day-1;
+  const weekStart0 = new Date(minD);
+  weekStart0.setDate(weekStart0.getDate()-diffToMonday);
+
+  const weeks = [];
+  let cursor = new Date(weekStart0);
+  while(cursor <= maxD){
+    const wEnd = new Date(cursor);
+    wEnd.setDate(wEnd.getDate()+6);
+    weeks.push({ start:new Date(cursor), end:wEnd });
+    cursor.setDate(cursor.getDate()+7);
+  }
+  return weeks;
+}
+function fmtMD(d){ return `${d.getMonth()+1}/${d.getDate()}`; }
+
+function buildGanttHtml(){
+  const weeks = buildGanttWeeks();
+  if(!weeks.length){
+    return `<div class="gantt-wrap"><p>目前沒有工作安排，無法產生甘特圖。</p></div>`;
+  }
+  const rows = [...data].sort((a,b)=>{
+    if(a.date!==b.date) return a.date.localeCompare(b.date);
+    return (a.order??0)-(b.order??0);
+  });
+
+  const headerCells = weeks.map(w=>`<th>${fmtMD(w.start)}~${fmtMD(w.end)}</th>`).join('');
+
+  const bodyRows = rows.map(s=>{
+    const cfg = TYPE_CFG[s.type] || TYPE_CFG['其他'];
+    const startD = new Date(s.date+'T00:00:00');
+    const endD = s.endDate ? new Date(s.endDate+'T00:00:00') : startD;
+
+    const cells = weeks.map(w=>{
+      const overlaps = startD <= w.end && endD >= w.start;
+      if(!overlaps) return `<td class="gantt-cell"></td>`;
+      // is this the week containing the bar's start? -> show the label here
+      const isStartWeek = startD >= w.start && startD <= w.end;
+      const labelHtml = isStartWeek
+        ? `<span class="gantt-bar-label">${escapeHtml(s.desc ? stripHtmlToText(s.desc) : s.type)}</span>`
+        : '';
+      return `<td class="gantt-cell"><div class="gantt-bar" style="background:${cfg.color}">${labelHtml}</div></td>`;
+    }).join('');
+
+    const descText = stripHtmlToText(s.desc||'');
+    return `<tr>
+      <td class="gantt-label-cell">
+        <div class="glc-type"><span class="glc-dot" style="background:${cfg.color}"></span>${s.type}</div>
+        <div class="glc-desc">${escapeHtml(descText.slice(0,30))}${descText.length>30?'…':''}</div>
+      </td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  const usedTypes = [...new Set(rows.map(s=>s.type))];
+  const legendHtml = usedTypes.map(t=>{
+    const cfg = TYPE_CFG[t] || TYPE_CFG['其他'];
+    return `<span class="gantt-legend-item"><span class="gantt-legend-dot" style="background:${cfg.color}"></span>${t}</span>`;
+  }).join('');
+
+  return `<div class="gantt-wrap">
+    <div class="gantt-header">
+      <h2>${escapeHtml(headerCfg?.title||'施工安排')} － 甘特圖</h2>
+      <p>${escapeHtml(headerCfg?.venue||'')}${headerCfg?.venue&&headerCfg?.date?' ｜ ':''}${escapeHtml(headerCfg?.date||'')}</p>
+    </div>
+    <table class="gantt-table">
+      <thead><tr><th class="gantt-label-cell" style="background:#f0f0f0">工作項目</th>${headerCells}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+    <div class="gantt-legend">${legendHtml}</div>
+  </div>`;
+}
+
+function stripHtmlToText(html){
+  const d = document.createElement('div');
+  d.innerHTML = html;
+  return (d.textContent || d.innerText || '').replace(/\s+/g,' ').trim();
+}
+
+async function exportGantt(format){
+  document.getElementById('ganttExportMenu').classList.remove('show');
+  if(!data.length){ alert('目前沒有工作安排，無法產生甘特圖。'); return; }
+
+  const root = document.getElementById('ganttRenderRoot');
+  root.innerHTML = buildGanttHtml();
+
+  const hint = document.getElementById('exportHint');
+  const hintText = document.getElementById('exportHintText');
+  hintText.textContent = format==='pdf' ? '正在產生甘特圖 PDF，請稍候…' : '正在產生甘特圖 JPG，請稍候…';
+  hint.classList.add('show');
+
+  // give the browser a tick to lay out the offscreen table before capturing
+  await new Promise(r=>setTimeout(r,80));
+
+  try{
+    const canvas = await html2canvas(root.firstElementChild, {
+      scale:2, useCORS:true, backgroundColor:'#FFFFFF',
+    });
+    const fileBase = `${(headerCfg?.title||'施工安排')}_甘特圖_${new Date().toISOString().slice(0,10)}`;
+
+    if(format==='jpg'){
+      const a=document.createElement('a');
+      a.href=canvas.toDataURL('image/jpeg',0.93);
+      a.download=`${fileBase}.jpg`;
+      a.click();
+    }else{
+      const { jsPDF } = window.jspdf;
+      const imgData = canvas.toDataURL('image/jpeg',0.93);
+      // landscape page sized to match the chart's aspect ratio
+      const pxToMm = 0.264583 / 2; // canvas was rendered at scale:2
+      const wMm = canvas.width * pxToMm;
+      const hMm = canvas.height * pxToMm;
+      const pdf = new jsPDF({
+        orientation: wMm >= hMm ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: [wMm, hMm],
+      });
+      pdf.addImage(imgData, 'JPEG', 0, 0, wMm, hMm);
+      pdf.save(`${fileBase}.pdf`);
+    }
+  }catch(e){
+    console.error(e);
+    alert('甘特圖匯出失敗，請稍後再試');
+  }finally{
+    root.innerHTML = '';
+    hint.classList.remove('show');
+  }
 }
 
 /* ══════════════════════════════════════
