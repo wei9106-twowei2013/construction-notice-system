@@ -258,9 +258,9 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
 .gantt-label-cell .glc-desc{font-size:.7rem;font-weight:400;color:#777;white-space:nowrap}
 .gantt-cell{height:42px;min-width:64px;position:relative}
 .gantt-bar-cell{padding:5px 4px}
-.gantt-bar{height:100%;border-radius:5px;
+.gantt-bar{height:100%;border-radius:0;
   display:flex;align-items:center;justify-content:center;padding:0 10px}
-.gantt-bar-label{font-size:.72rem;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25);
+.gantt-bar-label{font-size:.72rem;font-weight:400;color:#fff;
   white-space:nowrap;text-align:center}
 .gantt-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
 .gantt-legend-item{display:flex;align-items:center;gap:5px;font-size:.72rem;color:#555}
@@ -2171,7 +2171,7 @@ function buildGanttHtml(){
       }
     });
 
-    const labelText = stripHtmlToText(s.desc||'') || s.type;
+    const labelText = spaceNumberedItems(stripHtmlToText(s.desc||'')) || s.type;
     let cellsHtml = '';
     if(firstIdx===-1){
       // shouldn't normally happen, but fall back to one empty cell per week
@@ -2190,7 +2190,7 @@ function buildGanttHtml(){
       for(let i=lastIdx+1;i<weeks.length;i++) cellsHtml += `<td class="gantt-cell"></td>`;
     }
 
-    const descText = stripHtmlToText(s.desc||'');
+    const descText = spaceNumberedItems(stripHtmlToText(s.desc||''));
     return `<tr>
       <td class="gantt-label-cell">
         <div class="glc-type"><span class="glc-dot" style="background:${cfg.color}"></span>${s.type}</div>
@@ -2223,6 +2223,13 @@ function stripHtmlToText(html){
   const d = document.createElement('div');
   d.innerHTML = html;
   return (d.textContent || d.innerText || '').replace(/\s+/g,' ').trim();
+}
+
+// Insert a space before each numbered item like "2." so that lists such as
+// "1.木作進場2.現場施作" read as "1.木作進場 2.現場施作" in the gantt chart.
+// Skips the very first number (position 0) so we don't add a leading space.
+function spaceNumberedItems(text){
+  return text.replace(/(\D)(\d+\.)/g, '$1 $2');
 }
 
 async function exportGantt(format){
