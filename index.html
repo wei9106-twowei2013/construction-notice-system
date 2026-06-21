@@ -772,15 +772,15 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
     <div class="modal-body">
       <div class="field">
         <label>通告名稱</label>
-        <input type="text" id="nn_title" placeholder="例：陳澄波展 卸展工作期程">
+        <input type="text" id="nn_title" autocomplete="off" placeholder="例：陳澄波展 卸展工作期程">
       </div>
       <div class="field">
         <label>地點</label>
-        <input type="text" id="nn_venue" placeholder="例：國立臺灣歷史博物館 4F第二特展室">
+        <input type="text" id="nn_venue" autocomplete="off" placeholder="例：國立臺灣歷史博物館 4F第二特展室">
       </div>
       <div class="field">
         <label>時間（顯示用文字）</label>
-        <input type="text" id="nn_date" placeholder="例：2026/3/30 或 3/2～3/9">
+        <input type="text" id="nn_date" autocomplete="off" placeholder="例：2026/3/30 或 3/2～3/9">
       </div>
     </div>
     <div class="modal-foot">
@@ -2431,12 +2431,29 @@ document.getElementById('dateFilterDisplay').addEventListener('click', e=>{
    Note: the work-slot modal (modalBg) is intentionally excluded — its
    description field uses an IME for Chinese input, where ESC is commonly
    used to cancel IME composition, not to close the dialog.
+   The new-notice modal (nnBg) is also excluded — its text inputs can
+   trigger the browser's native autocomplete dropdown (saved past entries),
+   and ESC there closes that dropdown first; without this exclusion the
+   keydown bubbles up and closes the whole modal unexpectedly.
 ══════════════════════════════════════ */
 document.addEventListener('keydown', e=>{
   if(e.key!=='Escape') return;
-  if(document.getElementById('nnBg').classList.contains('open')) closeNewNoticeModal();
-  else if(document.getElementById('amBg').classList.contains('open')) closeAM();
+  if(document.getElementById('amBg').classList.contains('open')) closeAM();
   else if(document.getElementById('hdBg').classList.contains('open')) closeHeaderSettings();
+});
+
+// Belt-and-braces: stop ESC inside the new-notice text inputs from
+// bubbling up at all. Some browsers, when a native autocomplete
+// suggestion list is showing, treat ESC as "dismiss suggestions" but
+// still let the keydown propagate — which was closing this modal
+// unexpectedly while typing. Capturing it here and calling
+// stopPropagation() ensures ESC never reaches any document-level
+// handler from these specific fields, regardless of autocomplete state.
+['nn_title','nn_venue','nn_date'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('keydown', e=>{
+    if(e.key==='Escape') e.stopPropagation();
+  });
 });
 </script>
 </body>
