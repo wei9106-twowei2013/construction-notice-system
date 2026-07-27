@@ -87,9 +87,12 @@ a{color:inherit}
    LIST VIEW (通告列表首頁)
 ══════════════════════════════════════ */
 .list-header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,var(--brand-light) 100%);color:#fff}
-.list-header-inner{max-width:1000px;margin:0 auto;padding:30px 24px 26px}
+.list-header-inner{max-width:1000px;margin:0 auto;padding:26px 24px 22px;
+  display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
 .list-header-inner h1{font-size:1.9rem;font-weight:900;letter-spacing:.04em}
 .list-header-inner p{font-size:.85rem;opacity:.75;margin-top:6px}
+.list-header-actions{display:flex;gap:8px;flex-shrink:0;align-items:center;padding-bottom:4px}
+.list-header-actions .btn{font-size:.78rem;padding:6px 12px}
 
 .list-main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .list-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:22px;flex-wrap:wrap}
@@ -663,8 +666,19 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   <div id="listView" class="active">
     <div class="list-header">
       <div class="list-header-inner">
-        <h1>施工安排通告系統</h1>
-        <p>展覽｜工程｜印刷製作的工作通告</p>
+        <div>
+          <h1>施工安排通告系統</h1>
+          <p>展覽｜工程｜印刷製作的工作通告</p>
+        </div>
+        <div class="list-header-actions">
+          <button class="btn btn-ghost" onclick="exportBackup()">
+            <svg class="icon" width="14" height="14"><use href="#ico-down"/></svg> 匯出備份
+          </button>
+          <label class="btn btn-ghost" style="cursor:pointer">
+            <svg class="icon" width="14" height="14"><use href="#ico-up"/></svg> 匯入備份
+            <input type="file" accept=".json" style="display:none" onchange="importBackup(event)">
+          </label>
+        </div>
       </div>
     </div>
     <div class="list-main">
@@ -1268,6 +1282,81 @@ window.addEventListener('DOMContentLoaded', ()=>{
 /* ══════════════════════════════════════
    LIST VIEW
 ══════════════════════════════════════ */
+/* ══════════════════════════════════════
+   BACKUP EXPORT / IMPORT
+══════════════════════════════════════ */
+async function exportBackup(){
+  document.getElementById('loadingOverlay').classList.remove('hide');
+  try{
+    const all = await fsListNotices();
+    // fetch full notice data (including slots) for each notice
+    const fullData = await Promise.all(all.map(n=> fsGetNotice(n.id)));
+    const backup = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      notices: fullData.filter(Boolean),
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `施工通告系統備份_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  }catch(e){
+    console.error(e);
+    alert('匯出失敗，請檢查網路連線後再試一次');
+  }
+  document.getElementById('loadingOverlay').classList.add('hide');
+}
+
+async function importBackup(e){
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+
+  let backup;
+  try{
+    const text = await file.text();
+    backup = JSON.parse(text);
+  }catch{
+    alert('檔案格式錯誤，請選擇正確的備份 JSON 檔案');
+    return;
+  }
+  if(!backup.notices || !Array.isArray(backup.notices)){
+    alert('備份檔案格式不正確，無法匯入');
+    return;
+  }
+
+  const total = backup.notices.length;
+  if(!confirm(`即將匯入 ${total} 筆通告備份（合併模式）：\n\n✅ 備份中有、系統中沒有的通告 → 新增\n⏭ 系統中已存在的通告 → 保留不動\n\n確定要繼續嗎？`)) return;
+
+  document.getElementById('loadingOverlay').classList.remove('hide');
+  try{
+    // fetch all existing IDs first
+    const existing = await fsListNotices();
+    const existingIds = new Set(existing.map(n=>n.id));
+
+    let added = 0;
+    for(const notice of backup.notices){
+      if(!notice.id) continue;
+      if(existingIds.has(notice.id)){
+        // already exists — skip (merge mode)
+        continue;
+      }
+      // new notice — write it
+      const { id, updatedAt, createdAt, ...payload } = notice;
+      await fsSaveNotice(id, { ...payload, createdAt: FB.serverTimestamp() });
+      added++;
+    }
+    noticesCache = await fsListNotices();
+    renderNoticeList();
+    alert(`匯入完成！\n✅ 新增了 ${added} 筆通告\n⏭ 跳過了 ${total - added} 筆（系統中已存在）`);
+  }catch(e){
+    console.error(e);
+    alert('匯入過程發生錯誤，部分資料可能未完成，請檢查後重試');
+  }
+  document.getElementById('loadingOverlay').classList.add('hide');
+}
+
 async function goToList(){
   if(isReadOnlyMode) return; // never expose the full notice list from a read-only share link
   currentNoticeId = null;
