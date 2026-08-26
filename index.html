@@ -101,6 +101,32 @@ a{color:inherit}
 .list-toolbar input[type=text]:focus{border-color:var(--brand)}
 
 .notice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+
+/* ── done / active sections ── */
+.notice-section{position:relative}
+.notice-section-done{margin-top:32px}
+.notice-section-toggle{width:100%;text-align:left;background:none;border:none;border-top:2px solid var(--border);
+  padding:14px 4px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;
+  font-size:.9rem;font-weight:800;color:var(--muted);letter-spacing:.04em;
+  transition:color .12s}
+.notice-section-toggle:hover{color:var(--brand)}
+.notice-section-toggle .toggle-arrow{font-size:.7rem;transition:transform .2s;display:inline-block}
+.notice-section-toggle.collapsed .toggle-arrow{transform:rotate(-90deg)}
+.notice-section-toggle .toggle-count{font-size:.78rem;font-weight:600;
+  background:var(--bg);border-radius:20px;padding:2px 10px;margin-left:4px}
+.notice-grid-done{margin-top:12px}
+.notice-section-done.collapsed .notice-grid-done{display:none}
+.notice-card.is-done{opacity:.75;filter:grayscale(15%)}
+.notice-card.is-done h3{color:var(--muted)}
+
+/* drop zones – shown only while a card is being dragged */
+.notice-drop-zone{display:none;border:2px dashed var(--border);border-radius:14px;
+  padding:20px;text-align:center;font-size:.82rem;color:var(--muted);margin-top:12px;
+  transition:background .15s,border-color .15s}
+.notice-drop-zone.drag-active{display:block}
+.notice-drop-zone.drag-over{background:#f0e8f5;border-color:var(--brand);color:var(--brand)}
+.notice-drop-zone-done{border-color:#9ccc65;color:#558b2f}
+.notice-drop-zone-done.drag-over{background:#f1f8e9;border-color:#558b2f}
 .notice-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
   padding:18px 20px;cursor:pointer;transition:box-shadow .15s,transform .1s,opacity .15s;position:relative;
   display:flex;flex-direction:column;gap:8px}
@@ -630,6 +656,12 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
     <path d="M6.5 9.5a3 3 0 004.2 0l2-2a3 3 0 00-4.2-4.2l-1 1"/>
     <path d="M9.5 6.5a3 3 0 00-4.2 0l-2 2a3 3 0 004.2 4.2l1-1"/>
   </symbol>
+  <symbol id="ico-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2.5 8.5l3.5 3.5 7-7"/>
+  </symbol>
+  <symbol id="ico-chevron-down" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 5.5l5 5 5-5"/>
+  </symbol>
 </defs>
 </svg>
 
@@ -672,10 +704,10 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
         </div>
         <div class="list-header-actions">
           <button class="btn btn-ghost" onclick="exportBackup()">
-            <svg class="icon" width="14" height="14"><use href="#ico-up"/></svg> 匯出備份
+            <svg class="icon" width="14" height="14"><use href="#ico-down"/></svg> 匯出備份
           </button>
           <label class="btn btn-ghost" style="cursor:pointer">
-            <svg class="icon" width="14" height="14"><use href="#ico-down"/></svg> 匯入備份
+            <svg class="icon" width="14" height="14"><use href="#ico-up"/></svg> 匯入備份
             <input type="file" accept=".json" style="display:none" onchange="importBackup(event)">
           </label>
         </div>
@@ -685,7 +717,23 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
       <div class="list-toolbar">
         <input type="text" id="searchNotice" placeholder="搜尋通告名稱或地點…" oninput="renderNoticeList()">
       </div>
-      <div class="notice-grid" id="noticeGrid"></div>
+      <!-- 進行中 -->
+      <div class="notice-section" id="sectionActive">
+        <div class="notice-grid" id="noticeGrid"></div>
+        <!-- drop zone for "done" cards being dragged back -->
+        <div class="notice-drop-zone" id="dropZoneActive" ondragover="onDropZoneDragOver(event,'active')" ondrop="onDropZoneDrop(event,'active')" ondragleave="onDropZoneLeave(event)">
+          拖曳到此處移回「進行中」
+        </div>
+      </div>
+      <!-- 已完成 -->
+      <div class="notice-section notice-section-done" id="sectionDone">
+        <button class="notice-section-toggle" id="doneSectionToggle" onclick="toggleDoneSection()">
+        </button>
+        <div class="notice-grid notice-grid-done" id="noticeGridDone"></div>
+        <div class="notice-drop-zone notice-drop-zone-done" id="dropZoneDone" ondragover="onDropZoneDragOver(event,'done')" ondrop="onDropZoneDrop(event,'done')" ondragleave="onDropZoneLeave(event)">
+          拖曳到此處標記為「已完成」
+        </div>
+      </div>
     </div>
     <button class="fab" onclick="openNewNoticeModal()" title="新增通告">
       <svg width="22" height="22"><use href="#ico-plus"/></svg>
@@ -1211,9 +1259,12 @@ async function fsSaveNotice(id, payload){
 }
 // Used for reordering only — deliberately does NOT touch updatedAt, so
 // dragging a notice card doesn't make every other notice look "just edited".
-async function fsSaveNoticeOrderOnly(id, noticeOrder){
+async function fsSaveNoticeOrderOnly(id, noticeOrder, status){
   const ref = FB.doc(FB.db, NOTICES_COLLECTION, id);
-  await FB.setDoc(ref, { noticeOrder }, { merge:true });
+  const payload = {};
+  if(noticeOrder !== undefined) payload.noticeOrder = noticeOrder;
+  if(status !== undefined) payload.status = status;
+  await FB.setDoc(ref, payload, { merge:true });
 }
 async function fsDeleteNotice(id){
   const ref = FB.doc(FB.db, NOTICES_COLLECTION, id);
@@ -1381,8 +1432,9 @@ function fmtUpdated(ts){
   return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())} 更新`;
 }
 
+let doneSectionCollapsed = false;
+
 function renderNoticeList(){
-  const grid = document.getElementById('noticeGrid');
   const q = (document.getElementById('searchNotice').value || '').trim().toLowerCase();
   let list = noticesCache;
   if(q){
@@ -1391,37 +1443,69 @@ function renderNoticeList(){
       (n.headerCfg?.venue||'').toLowerCase().includes(q)
     );
   }
-  if(!list.length){
+
+  const active = list.filter(n=> n.status !== 'done');
+  const done   = list.filter(n=> n.status === 'done');
+
+  // ── active grid ──
+  const grid = document.getElementById('noticeGrid');
+  if(!active.length){
     grid.innerHTML = `<div class="empty-list" style="grid-column:1/-1">
       <svg width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 16 16">
         <use href="#ico-folder"/>
       </svg>
       <p>${q? '找不到符合的通告' : '尚未建立任何通告，點選右下角「＋」開始'}</p>
     </div>`;
-    return;
+  }else{
+    grid.innerHTML = active.map((n,i)=> noticeCardHtml(n,i,false)).join('');
   }
-  grid.innerHTML = list.map((n,i)=>{
-    const title = n.headerCfg?.title || '未命名通告';
-    const venue = n.headerCfg?.venue || '';
-    const dateText = n.headerCfg?.date || '';
-    const count = (n.data||[]).length;
-    const seqStr = String(i+1).padStart(3,'0');
-    return `<div class="notice-card" data-notice-id="${n.id}" draggable="true" onclick="openNotice('${n.id}')">
-      <div class="nc-seq">
-        <span class="nc-seq-num">${seqStr}</span>
-        <span class="nc-drag-handle" title="拖曳排序" onclick="event.stopPropagation()">${svgIcon('ico-grip',13)}</span>
-      </div>
-      <h3>${escapeHtml(title)}</h3>
-      ${venue? `<div class="nc-meta">${svgIcon('ico-pin',12)} ${escapeHtml(venue)}</div>`:''}
-      ${dateText? `<div class="nc-meta">${svgIcon('ico-cal',12)} ${escapeHtml(dateText)}</div>`:''}
-      <div class="nc-stats"><span><b>${count}</b> 筆工作安排</span></div>
-      <div class="nc-updated">${fmtUpdated(n.updatedAt)}</div>
-      <button class="nc-menu-btn" onclick="event.stopPropagation();openNcMenu(event,'${n.id}')">
-        ${svgIcon('ico-dots',15)}
-      </button>
-    </div>`;
-  }).join('');
+
+  // ── done grid ──
+  const gridDone = document.getElementById('noticeGridDone');
+  const toggle = document.getElementById('doneSectionToggle');
+  const sectionDone = document.getElementById('sectionDone');
+
+  toggle.innerHTML = `<span class="toggle-arrow">${svgIcon('ico-chevron-down',12)}</span>
+    已完成通告
+    <span class="toggle-count">${done.length} 筆</span>`;
+  if(doneSectionCollapsed) toggle.classList.add('collapsed');
+  else toggle.classList.remove('collapsed');
+
+  if(!done.length){
+    gridDone.innerHTML = '';
+  }else{
+    gridDone.innerHTML = done.map((n,i)=> noticeCardHtml(n,i,true)).join('');
+  }
+
   attachNoticeDragHandlers();
+}
+
+function noticeCardHtml(n, i, isDone){
+  const title = n.headerCfg?.title || '未命名通告';
+  const venue = n.headerCfg?.venue || '';
+  const dateText = n.headerCfg?.date || '';
+  const count = (n.data||[]).length;
+  const seqStr = String(i+1).padStart(3,'0');
+  const doneClass = isDone ? ' is-done' : '';
+  return `<div class="notice-card${doneClass}" data-notice-id="${n.id}" data-status="${isDone?'done':'active'}" draggable="true" onclick="openNotice('${n.id}')">
+    <div class="nc-seq">
+      <span class="nc-seq-num">${seqStr}</span>
+      <span class="nc-drag-handle" title="拖曳排序" onclick="event.stopPropagation()">${svgIcon('ico-grip',13)}</span>
+    </div>
+    <h3>${escapeHtml(title)}</h3>
+    ${venue? `<div class="nc-meta">${svgIcon('ico-pin',12)} ${escapeHtml(venue)}</div>`:''}
+    ${dateText? `<div class="nc-meta">${svgIcon('ico-cal',12)} ${escapeHtml(dateText)}</div>`:''}
+    <div class="nc-stats"><span><b>${count}</b> 筆工作安排</span></div>
+    <div class="nc-updated">${fmtUpdated(n.updatedAt)}</div>
+    <button class="nc-menu-btn" onclick="event.stopPropagation();openNcMenu(event,'${n.id}')">
+      ${svgIcon('ico-dots',15)}
+    </button>
+  </div>`;
+}
+
+function toggleDoneSection(){
+  doneSectionCollapsed = !doneSectionCollapsed;
+  renderNoticeList();
 }
 
 function escapeHtml(s){
@@ -1440,10 +1524,15 @@ function attachNoticeDragHandlers(){
       el.classList.add('dragging');
       e.dataTransfer.effectAllowed='move';
       try{ e.dataTransfer.setData('text/plain', dragNoticeId); }catch(err){}
+      // show both drop zones while dragging
+      document.querySelectorAll('.notice-drop-zone').forEach(z=>z.classList.add('drag-active'));
     });
     el.addEventListener('dragend', ()=>{
       el.classList.remove('dragging');
       document.querySelectorAll('.notice-card').forEach(x=>x.classList.remove('drag-over-left','drag-over-right'));
+      document.querySelectorAll('.notice-drop-zone').forEach(z=>{
+        z.classList.remove('drag-active','drag-over');
+      });
     });
     el.addEventListener('dragover', e=>{
       e.preventDefault();
@@ -1461,13 +1550,43 @@ function attachNoticeDragHandlers(){
       el.classList.remove('drag-over-left','drag-over-right');
       if(dragNoticeId===null) return;
       const targetId = el.dataset.noticeId;
-      if(targetId===dragNoticeId) return;
+      if(targetId===dragNoticeId){ dragNoticeId=null; return; }
+      // if dropped onto a card in the opposite status zone, also change status
+      const srcNotice = noticesCache.find(n=>n.id===dragNoticeId);
+      const tgtNotice = noticesCache.find(n=>n.id===targetId);
+      if(srcNotice && tgtNotice && srcNotice.status !== tgtNotice.status){
+        srcNotice.status = tgtNotice.status;
+        fsSaveNoticeOrderOnly(dragNoticeId, srcNotice.noticeOrder, srcNotice.status).catch(console.error);
+      }
       const rect=el.getBoundingClientRect();
       const dropBefore = (e.clientX - rect.left) < rect.width/2;
       reorderNotice(dragNoticeId, targetId, dropBefore);
       dragNoticeId=null;
     });
   });
+}
+
+// called by drop zones (HTML ondrop attributes)
+function onDropZoneDragOver(e, targetStatus){
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+function onDropZoneLeave(e){
+  e.currentTarget.classList.remove('drag-over');
+}
+async function onDropZoneDrop(e, targetStatus){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over','drag-active');
+  document.querySelectorAll('.notice-drop-zone').forEach(z=>z.classList.remove('drag-active'));
+  if(!dragNoticeId) return;
+  const n = noticesCache.find(x=>x.id===dragNoticeId);
+  if(!n){ dragNoticeId=null; return; }
+  if(n.status === targetStatus){ dragNoticeId=null; return; }
+  n.status = targetStatus;
+  renderNoticeList();
+  try{ await fsSaveNoticeOrderOnly(n.id, n.noticeOrder, targetStatus); }
+  catch(err){ console.error(err); }
+  dragNoticeId=null;
 }
 
 async function reorderNotice(sourceId, targetId, before){
@@ -1497,22 +1616,38 @@ async function reorderNotice(sourceId, targetId, before){
 
 function openNcMenu(e, id){
   const menu = document.getElementById('ncMenu');
+  const notice = noticesCache.find(n=>n.id===id);
+  const isDone = notice?.status === 'done';
+  const statusBtn = isDone
+    ? `<button onclick="setNoticeStatus('${id}','active')">${svgIcon('ico-folder',14)} 移回進行中</button>`
+    : `<button onclick="setNoticeStatus('${id}','done')">${svgIcon('ico-check',14)} 標記為完成</button>`;
   menu.innerHTML = `
     <button onclick="openShareTypeMenu('${id}')">${svgIcon('ico-link',14)} 複製分享連結</button>
     <button onclick="duplicateNotice('${id}')">${svgIcon('ico-copy',14)} 複製通告</button>
+    ${statusBtn}
     <button class="danger" onclick="confirmDeleteNotice('${id}')">${svgIcon('ico-trash',14)} 刪除通告</button>
   `;
   const r = e.currentTarget.getBoundingClientRect();
-  // .nc-menu uses position:fixed, so coordinates are viewport-relative — do NOT add scrollY/scrollX
-  const menuW = 200, menuH = 150; // approx size, enough for boundary checks
+  const menuW = 200, menuH = 180;
   let top = r.bottom + 4;
   if(top + menuH > window.innerHeight) top = Math.max(8, r.top - menuH - 4);
-  let left = r.right - menuW; // align menu's right edge with the button's right edge
+  let left = r.right - menuW;
   left = Math.min(left, window.innerWidth - menuW - 8);
   left = Math.max(8, left);
   menu.style.top = top + 'px';
   menu.style.left = left + 'px';
   menu.classList.add('show');
+}
+
+async function setNoticeStatus(id, status){
+  document.getElementById('ncMenu').classList.remove('show');
+  const n = noticesCache.find(x=>x.id===id);
+  if(!n) return;
+  n.status = status;
+  renderNoticeList();
+  try{
+    await fsSaveNoticeOrderOnly(id, n.noticeOrder, status);
+  }catch(e){ console.error(e); }
 }
 const SHARE_LINK_BASE = 'https://construction-notice-share.wei9106.workers.dev/';
 const SHARE_TYPE_LIST = ['水電','圖威','文保','木工','油漆','大圖輸出','貼圖','美術','多媒體','清潔','燈光','其他'];
