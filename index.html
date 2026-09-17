@@ -374,6 +374,8 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .slot[data-type="燈光"] .slot-time{color:#F9A825}
 .slot[data-type="其他"]{border-left-color:#4A7C6F}
 .slot[data-type="其他"] .slot-time{color:#4A7C6F}
+.slot[data-type="文宣品"]{border-left-color:#D81B60}
+.slot[data-type="文宣品"] .slot-time{color:#D81B60}
 
 .slot-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .type-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 8px;
@@ -594,6 +596,9 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   <symbol id="ico-sticker" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <rect x="1.5" y="1.5" width="13" height="13" rx="2"/><path d="M1.5 10l4-4 2.5 2.5 2-2 4 4"/><path d="M10 1.5v5h4.5"/>
   </symbol>
+  <symbol id="ico-flyer" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 1.5h7l3 3V13a1 1 0 01-1 1H3a1 1 0 01-1-1V2.5a1 1 0 011-1z"/><path d="M10 1.5V5h3"/><path d="M4.5 7.5h7M4.5 9.5h7M4.5 11.5h4"/>
+  </symbol>
   <symbol id="ico-palette" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M8 1.5a6.5 6.5 0 100 13 2 2 0 000-4 2 2 0 012-2h2a2.5 2.5 0 000-5A6.5 6.5 0 008 1.5z"/>
     <circle cx="5" cy="6" r=".8" fill="currentColor" stroke="none"/>
@@ -789,6 +794,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
             <option value="清潔">清潔</option>
             <option value="燈光">燈光</option>
             <option value="其他">其他</option>
+            <option value="文宣品">文宣品</option>
           </select>
           <button class="btn btn-primary" id="addBtn" onclick="openModal()">
             <svg class="icon" width="13" height="13"><use href="#ico-plus"/></svg> 新增工作
@@ -885,6 +891,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
           <option value="清潔">清潔</option>
           <option value="燈光">燈光</option>
           <option value="其他">其他</option>
+          <option value="文宣品">文宣品</option>
         </select>
       </div>
       <div class="field-row">
@@ -1185,6 +1192,7 @@ const TYPE_CFG = {
   '清潔':  { color:'#558B2F', ico:'ico-clean'  },
   '燈光':  { color:'#F9A825', ico:'ico-light'  },
   '其他':  { color:'#4A7C6F', ico:'ico-wrench' },
+  '文宣品':{ color:'#D81B60', ico:'ico-flyer'  },
 };
 
 /* ══════════════════════════════════════
@@ -1650,7 +1658,7 @@ async function setNoticeStatus(id, status){
   }catch(e){ console.error(e); }
 }
 const SHARE_LINK_BASE = 'https://construction-notice-share.wei9106.workers.dev/';
-const SHARE_TYPE_LIST = ['水電','圖威','文保','木工','油漆','大圖輸出','貼圖','美術','多媒體','清潔','燈光','其他'];
+const SHARE_TYPE_LIST = ['水電','圖威','文保','木工','油漆','大圖輸出','貼圖','美術','多媒體','清潔','燈光','其他','文宣品'];
 
 function openShareTypeMenu(id){
   const menu = document.getElementById('ncMenu');
