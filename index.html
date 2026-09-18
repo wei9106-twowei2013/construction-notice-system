@@ -1234,12 +1234,29 @@ const AM_QUICK_SWATCHES=[
   '#597644','#1F6A62','#4293A6','#3B679A',
   '#535B91','#674D79','#8B365B','#473835',
 ];
+/* 指定人員固定使用的顏色（優先於自動配色，仍可在人員顏色管理中手動覆蓋） */
+const FIXED_NAME_COLORS = {
+  '俊偉': '#A9D18E',
+};
+/* 依背景色亮度自動決定文字用白色或深色，讓淺色（如淺綠）也能維持可讀性 */
+function pillTextColor(hex){
+  const h=(hex||'').replace('#','');
+  if(h.length<6) return '#fff';
+  const r=parseInt(h.substr(0,2),16)/255, g=parseInt(h.substr(2,2),16)/255, b=parseInt(h.substr(4,2),16)/255;
+  const lin=c=>c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4);
+  const L=0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b);
+  return L>0.4 ? '#2b2b2b' : '#fff';
+}
 let nameColorMap = {};
 let paletteIdx = 0;
 function assigneeColor(name){
   if(!nameColorMap[name]){
-    nameColorMap[name]=PALETTE[paletteIdx%PALETTE.length];
-    paletteIdx++;
+    if(FIXED_NAME_COLORS[name]){
+      nameColorMap[name]=FIXED_NAME_COLORS[name];
+    }else{
+      nameColorMap[name]=PALETTE[paletteIdx%PALETTE.length];
+      paletteIdx++;
+    }
   }
   return nameColorMap[name];
 }
@@ -1935,10 +1952,11 @@ function render(){
 
     slots.forEach(s=>{
       const cfg=TYPE_CFG[s.type]||TYPE_CFG['其他'];
-      const pills=(s.assignees||[]).map(a=>
-        `<span class="assignee-pill" style="background:${assigneeColor(a)}"
-          onclick="editSlot(${s.id})" title="點擊編輯此工作">${escapeHtml(a)}</span>`
-      ).join('');
+      const pills=(s.assignees||[]).map(a=>{
+        const ac=assigneeColor(a);
+        return `<span class="assignee-pill" style="background:${ac};color:${pillTextColor(ac)}"
+          onclick="editSlot(${s.id})" title="點擊編輯此工作">${escapeHtml(a)}</span>`;
+      }).join('');
       const venueHTML=s.venue?`<span class="slot-venue">${escapeHtml(s.venue)}</span>`:'';
       const timeNoteHTML=s.timeNote?`<div class="time-note">${escapeHtml(s.timeNote)}</div>`:'';
       const timeLabel=s.end?`${s.start}<span class="t-tilde"> ~ </span>${s.end}`:s.start;
@@ -2147,7 +2165,7 @@ function renderAssigneeColorPickers(names){
       `<span class="am-swatch am-swatch-sm" style="background:${sc}" onclick="pickFormAssigneeColor('${escAttr(n)}','${sc}',this)"></span>`
     ).join('');
     return `<div class="form-assignee-color-row">
-      <span class="am-pill-prev" style="background:${c}">${escapeHtml(n)}</span>
+      <span class="am-pill-prev" style="background:${c};color:${pillTextColor(c)}">${escapeHtml(n)}</span>
       <div class="am-swatch-grid am-swatch-grid-sm">
         ${swatchesHTML}
         <span class="am-swatch am-swatch-sm am-swatch-custom" title="自訂顏色">
@@ -2162,7 +2180,7 @@ function pickFormAssigneeColor(name,color,el){
   nameColorMap[name]=color;
   const row = el.closest('.form-assignee-color-row');
   const preview = row ? row.querySelector('.am-pill-prev') : null;
-  if(preview) preview.style.background=color;
+  if(preview){ preview.style.background=color; preview.style.color=pillTextColor(color); }
 }
 
 function saveSlot(){
@@ -2295,7 +2313,7 @@ function openAssigneeManager(){
     ).join('');
     row.innerHTML=`
       <div class="am-row-top">
-        <span class="am-pill-prev" style="background:${color}">${escapeHtml(name)}</span>
+        <span class="am-pill-prev" style="background:${color};color:${pillTextColor(color)}">${escapeHtml(name)}</span>
       </div>
       <div class="am-swatch-grid" data-name="${escAttr(name)}">
         ${swatchesHTML}
@@ -2314,7 +2332,7 @@ function updateAssigneeColor(name,color,swatchEl){
   const grid = swatchEl.closest('.am-swatch-grid');
   const row = grid ? grid.closest('.am-row') : null;
   const preview = row ? row.querySelector('.am-pill-prev') : null;
-  if(preview) preview.style.background=color;
+  if(preview){ preview.style.background=color; preview.style.color=pillTextColor(color); }
   render();scheduleSave();
 }
 function closeAM(){document.getElementById('amBg').classList.remove('open');}
