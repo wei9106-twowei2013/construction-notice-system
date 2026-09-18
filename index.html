@@ -372,10 +372,16 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .slot[data-type="清潔"] .slot-time{color:#558B2F}
 .slot[data-type="燈光"]{border-left-color:#F9A825}
 .slot[data-type="燈光"] .slot-time{color:#F9A825}
-.slot[data-type="其他"]{border-left-color:#4A7C6F}
-.slot[data-type="其他"] .slot-time{color:#4A7C6F}
 .slot[data-type="文宣品"]{border-left-color:#D81B60}
 .slot[data-type="文宣品"] .slot-time{color:#D81B60}
+.slot[data-type="攝影"]{border-left-color:#C62828}
+.slot[data-type="攝影"] .slot-time{color:#C62828}
+.slot[data-type="腳本企劃"]{border-left-color:#9E9D24}
+.slot[data-type="腳本企劃"] .slot-time{color:#9E9D24}
+.slot[data-type="展示設計"]{border-left-color:#6A4C93}
+.slot[data-type="展示設計"] .slot-time{color:#6A4C93}
+.slot[data-type="其他"]{border-left-color:#4A7C6F}
+.slot[data-type="其他"] .slot-time{color:#4A7C6F}
 
 .slot-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .type-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 8px;
@@ -599,6 +605,15 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   <symbol id="ico-flyer" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M3 1.5h7l3 3V13a1 1 0 01-1 1H3a1 1 0 01-1-1V2.5a1 1 0 011-1z"/><path d="M10 1.5V5h3"/><path d="M4.5 7.5h7M4.5 9.5h7M4.5 11.5h4"/>
   </symbol>
+  <symbol id="ico-camera" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1.5 5.5a1 1 0 011-1h2l1-1.5h5l1 1.5h2a1 1 0 011 1V13a1 1 0 01-1 1h-11a1 1 0 01-1-1V5.5z"/><circle cx="8" cy="9" r="2.5"/>
+  </symbol>
+  <symbol id="ico-script" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2.5" y="1.5" width="8" height="11" rx="1"/><path d="M4.5 4.5h4M4.5 7h4M4.5 9.5h2.5"/><path d="M11 9.5l2.5-2.5 1.5 1.5-2.5 2.5-1.8.3.3-1.8z"/>
+  </symbol>
+  <symbol id="ico-layout" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1.5" y="1.5" width="13" height="13" rx="1.5"/><path d="M1.5 6h13M6 6v8.5"/>
+  </symbol>
   <symbol id="ico-palette" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M8 1.5a6.5 6.5 0 100 13 2 2 0 000-4 2 2 0 012-2h2a2.5 2.5 0 000-5A6.5 6.5 0 008 1.5z"/>
     <circle cx="5" cy="6" r=".8" fill="currentColor" stroke="none"/>
@@ -793,8 +808,11 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
             <option value="多媒體">多媒體</option>
             <option value="清潔">清潔</option>
             <option value="燈光">燈光</option>
-            <option value="其他">其他</option>
             <option value="文宣品">文宣品</option>
+            <option value="攝影">攝影</option>
+            <option value="腳本企劃">腳本企劃</option>
+            <option value="展示設計">展示設計</option>
+            <option value="其他">其他</option>
           </select>
           <button class="btn btn-primary" id="addBtn" onclick="openModal()">
             <svg class="icon" width="13" height="13"><use href="#ico-plus"/></svg> 新增工作
@@ -890,8 +908,11 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
           <option value="多媒體">多媒體</option>
           <option value="清潔">清潔</option>
           <option value="燈光">燈光</option>
-          <option value="其他">其他</option>
           <option value="文宣品">文宣品</option>
+          <option value="攝影">攝影</option>
+          <option value="腳本企劃">腳本企劃</option>
+          <option value="展示設計">展示設計</option>
+          <option value="其他">其他</option>
         </select>
       </div>
       <div class="field-row">
@@ -1191,8 +1212,11 @@ const TYPE_CFG = {
   '多媒體':{ color:'#3949AB', ico:'ico-media'  },
   '清潔':  { color:'#558B2F', ico:'ico-clean'  },
   '燈光':  { color:'#F9A825', ico:'ico-light'  },
-  '其他':  { color:'#4A7C6F', ico:'ico-wrench' },
   '文宣品':{ color:'#D81B60', ico:'ico-flyer'  },
+  '攝影':  { color:'#C62828', ico:'ico-camera' },
+  '腳本企劃':{ color:'#9E9D24', ico:'ico-script' },
+  '展示設計':{ color:'#6A4C93', ico:'ico-layout' },
+  '其他':  { color:'#4A7C6F', ico:'ico-wrench' },
 };
 
 /* ══════════════════════════════════════
@@ -1658,7 +1682,7 @@ async function setNoticeStatus(id, status){
   }catch(e){ console.error(e); }
 }
 const SHARE_LINK_BASE = 'https://construction-notice-share.wei9106.workers.dev/';
-const SHARE_TYPE_LIST = ['水電','圖威','文保','木工','油漆','大圖輸出','貼圖','美術','多媒體','清潔','燈光','其他','文宣品'];
+const SHARE_TYPE_LIST = ['水電','圖威','文保','木工','油漆','大圖輸出','貼圖','美術','多媒體','清潔','燈光','文宣品','攝影','腳本企劃','展示設計','其他'];
 
 function openShareTypeMenu(id){
   const menu = document.getElementById('ncMenu');
