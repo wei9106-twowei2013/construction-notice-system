@@ -292,7 +292,7 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
 .gantt-label-cell .glc-type{display:flex;align-items:center;gap:5px;margin-bottom:2px;white-space:nowrap}
 .gantt-label-cell .glc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .gantt-label-cell .glc-desc{font-size:.7rem;font-weight:400;color:#777;white-space:nowrap}
-.gantt-cell{min-height:42px;height:42px;min-width:64px;position:relative}
+.gantt-cell{min-height:42px;height:42px;min-width:8px;position:relative}
 .gantt-bar-cell{padding:6px 5px}
 .gantt-bar{border-radius:11px;box-shadow:0 2px 4px rgba(0,0,0,.1);padding:6px 16px;
   box-sizing:border-box;min-height:22px}
@@ -2424,6 +2424,7 @@ function buildGanttWeeks(){
   return weeks;
 }
 function fmtMD(d){ return `${d.getMonth()+1}/${d.getDate()}`; }
+const MS_PER_DAY = 86400000;
 
 function buildGanttHtml(){
   const weeks = buildGanttWeeks();
@@ -2435,36 +2436,45 @@ function buildGanttHtml(){
     return (a.order??0)-(b.order??0);
   });
 
-  const headerCells = weeks.map(w=>`<th>${fmtMD(w.start)}~${fmtMD(w.end)}</th>`).join('');
+  const rangeStart = weeks[0].start;
+  const daysTotal = weeks.length*7;
+  // each week header spans the 7 day-columns underneath it, so the bar
+  // below can be sized to the exact day count instead of a whole week
+  const headerCells = weeks.map(w=>`<th colspan="7" class="wk-start">${fmtMD(w.start)}~${fmtMD(w.end)}</th>`).join('');
 
   const bodyRows = rows.map((s,i)=>{
     const cfg = TYPE_CFG[s.type] || TYPE_CFG['其他'];
     const startD = new Date(s.date+'T00:00:00');
     const endD = s.endDate ? new Date(s.endDate+'T00:00:00') : startD;
 
-    // find the first/last week index this slot overlaps, so the bar can
-    // be rendered as ONE merged cell (colspan) instead of one <td> per week
-    let firstIdx = -1, lastIdx = -1;
-    weeks.forEach((w,wi)=>{
-      if(startD <= w.end && endD >= w.start){
-        if(firstIdx===-1) firstIdx = wi;
-        lastIdx = wi;
-      }
-    });
+    // exact day offsets from the chart's start date, so the bar's colspan
+    // matches the real duration instead of snapping to whole weeks
+    let startOffset = Math.round((startD-rangeStart)/MS_PER_DAY);
+    let endOffset = Math.round((endD-rangeStart)/MS_PER_DAY);
+    startOffset = Math.max(0, Math.min(daysTotal-1, startOffset));
+    endOffset = Math.max(0, Math.min(daysTotal-1, endOffset));
 
     const labelText = spaceNumberedItems(stripHtmlToText(s.desc||'')) || s.type;
     let cellsHtml = '';
-    if(firstIdx===-1){
-      cellsHtml = weeks.map(()=>`<td class="gantt-cell"></td>`).join('');
+    if(endOffset<startOffset){
+      weeks.forEach(()=>{ cellsHtml += `<td class="gantt-cell wk-start" colspan="7"></td>`; });
     }else{
-      for(let wi=0;wi<firstIdx;wi++) cellsHtml += `<td class="gantt-cell"></td>`;
-      const span = lastIdx-firstIdx+1;
-      cellsHtml += `<td class="gantt-cell gantt-bar-cell" colspan="${span}">
+      const startWeek = Math.floor(startOffset/7), startDayInWk = startOffset%7;
+      const endWeek = Math.floor(endOffset/7), endDayInWk = endOffset%7;
+      // whole empty weeks before the bar's start week
+      for(let wi=0; wi<startWeek; wi++) cellsHtml += `<td class="gantt-cell wk-start" colspan="7"></td>`;
+      // partial leading days within the start week itself
+      if(startDayInWk>0) cellsHtml += `<td class="gantt-cell wk-start" colspan="${startDayInWk}"></td>`;
+      const span = endOffset-startOffset+1;
+      cellsHtml += `<td class="gantt-cell gantt-bar-cell${startDayInWk===0?' wk-start':''}" colspan="${span}">
         <div class="gantt-bar" style="background:${cfg.color}">
           <span class="gantt-bar-label">${escapeHtml(labelText)}</span>
         </div>
       </td>`;
-      for(let wi=lastIdx+1;wi<weeks.length;wi++) cellsHtml += `<td class="gantt-cell"></td>`;
+      // partial trailing days within the end week itself
+      if(endDayInWk<6) cellsHtml += `<td class="gantt-cell" colspan="${6-endDayInWk}"></td>`;
+      // whole empty weeks after the bar's end week
+      for(let wi=endWeek+1; wi<weeks.length; wi++) cellsHtml += `<td class="gantt-cell wk-start" colspan="7"></td>`;
     }
 
     const descText = spaceNumberedItems(stripHtmlToText(s.desc||''));
