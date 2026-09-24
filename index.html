@@ -302,6 +302,22 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
 .gantt-legend-item{display:flex;align-items:center;gap:5px;font-size:.72rem;color:#555}
 .gantt-legend-dot{width:9px;height:9px;border-radius:50%}
 
+/* ── Month Calendar (Google 月曆風格匯出) ── */
+.cal-wrap{width:1050px;padding:28px 32px;background:#fff}
+.cal-header{margin-bottom:16px}
+.cal-header h2{font-size:1.3rem;font-weight:900;color:var(--brand-dark);margin-bottom:4px}
+.cal-header p{font-size:.78rem;color:var(--muted)}
+.cal-table{border-collapse:collapse;border:1px solid #d8d8d8;table-layout:fixed;width:100%}
+.cal-table th{background:#f0f0f0;font-size:.86rem;font-weight:800;color:#222;
+  padding:9px 0;text-align:center;border:1px solid #d8d8d8}
+.cal-table td.cal-cell{border:1px solid #d8d8d8;vertical-align:top;padding:6px;
+  box-sizing:border-box;height:104px;width:14.2857%}
+.cal-table td.cal-cell-pad{background:#fafafa}
+.cal-daynum{font-size:.84rem;font-weight:800;color:#333;margin-bottom:4px}
+.cal-chip{font-size:.64rem;font-weight:600;color:#fff;padding:2px 6px;border-radius:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.cal-more{font-size:.6rem;color:var(--muted)}
+
 /* ── Main ── */
 main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 
@@ -832,6 +848,19 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
                 匯出 JPG
               </button>
               <button onclick="exportGantt('pdf')">
+                匯出 PDF
+              </button>
+            </div>
+          </div>
+          <div class="gantt-export-wrap">
+            <button class="btn btn-ghost" onclick="toggleCalMenu(event)">
+              <svg class="icon" width="14" height="14"><use href="#ico-cal"/></svg> 月曆
+            </button>
+            <div class="gantt-export-menu" id="calExportMenu">
+              <button onclick="exportCalendar('jpg')">
+                匯出 JPG
+              </button>
+              <button onclick="exportCalendar('pdf')">
                 匯出 PDF
               </button>
             </div>
@@ -2544,9 +2573,15 @@ function toggleGanttMenu(e){
   e.stopPropagation();
   document.getElementById('ganttExportMenu').classList.toggle('show');
 }
+function toggleCalMenu(e){
+  e.stopPropagation();
+  document.getElementById('calExportMenu').classList.toggle('show');
+}
 document.addEventListener('click', e=>{
   const m = document.getElementById('ganttExportMenu');
   if(m.classList.contains('show') && !e.target.closest('.gantt-export-wrap')) m.classList.remove('show');
+  const cm = document.getElementById('calExportMenu');
+  if(cm.classList.contains('show') && !e.target.closest('.gantt-export-wrap')) cm.classList.remove('show');
 });
 
 /* Build Monday-start week buckets spanning the full range of every slot's
@@ -2737,6 +2772,151 @@ async function exportGantt(format){
     alert('甘特圖匯出失敗，請稍後再試');
   }finally{
     root.innerHTML = '';
+    hint.classList.remove('show');
+  }
+}
+
+/* ══════════════════════════════════════
+   MONTH CALENDAR (Google 月曆風格, JPG/PDF export)
+══════════════════════════════════════ */
+const CAL_WD = ['日','一','二','三','四','五','六'];
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+// 通告資料涵蓋到的所有月份（含跨日工作的結束月），依時間順序，不重複
+function getCalendarMonths(){
+  if(!data.length) return [];
+  let minD=null, maxD=null;
+  data.forEach(s=>{
+    const start=new Date(s.date+'T00:00:00');
+    const end=s.endDate?new Date(s.endDate+'T00:00:00'):start;
+    if(!minD||start<minD) minD=start;
+    if(!maxD||end>maxD) maxD=end;
+  });
+  const months=[];
+  let y=minD.getFullYear(), m=minD.getMonth();
+  const endY=maxD.getFullYear(), endM=maxD.getMonth();
+  while(y<endY || (y===endY && m<=endM)){
+    months.push({year:y, month:m});
+    m++; if(m>11){ m=0; y++; }
+  }
+  return months;
+}
+// 某一天（yyyy-mm-dd）涵蓋到的所有工作項目，包含跨日工作
+function slotsOnDate(dateKey){
+  const d = new Date(dateKey+'T00:00:00');
+  return data.filter(s=>{
+    const start=new Date(s.date+'T00:00:00');
+    const end=s.endDate?new Date(s.endDate+'T00:00:00'):start;
+    return d>=start && d<=end;
+  }).sort((a,b)=>(a.order??0)-(b.order??0));
+}
+function buildMonthCalendarHtml(year, month){
+  const first = new Date(year, month, 1);
+  const startOffset = first.getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const totalCells = Math.ceil((startOffset+daysInMonth)/7)*7;
+  const MAX_SHOW = 4;
+
+  const headCells = CAL_WD.map(w=>`<th>${w}</th>`).join('');
+
+  let bodyRows='';
+  for(let row=0; row<totalCells/7; row++){
+    let rowHtml='<tr>';
+    for(let col=0; col<7; col++){
+      const i = row*7+col;
+      const dayNum = i-startOffset+1;
+      const inMonth = dayNum>=1 && dayNum<=daysInMonth;
+      if(!inMonth){
+        rowHtml += `<td class="cal-cell cal-cell-pad"></td>`;
+        continue;
+      }
+      const dateKey = `${year}-${pad2(month+1)}-${pad2(dayNum)}`;
+      const slots = slotsOnDate(dateKey);
+      const shown = slots.slice(0,MAX_SHOW);
+      const extra = slots.length - shown.length;
+      const chipsHtml = shown.map(s=>{
+        const cfg = typeCfg(s.type);
+        const label = spaceNumberedItems(stripHtmlToText(s.desc||'')) || s.type;
+        return `<div class="cal-chip" style="background:${cfg.color}">${escapeHtml(label)}</div>`;
+      }).join('');
+      const moreHtml = extra>0 ? `<div class="cal-more">還有 ${extra} 項</div>` : '';
+      rowHtml += `<td class="cal-cell">
+        <div class="cal-daynum">${dayNum}</div>
+        ${chipsHtml}${moreHtml}
+      </td>`;
+    }
+    rowHtml+='</tr>';
+    bodyRows+=rowHtml;
+  }
+
+  return `<div class="cal-wrap">
+    <div class="cal-header">
+      <h2>${escapeHtml(headerCfg?.title||'施工安排')} － ${year}年${month+1}月</h2>
+      <p>${escapeHtml(headerCfg?.venue||'')}</p>
+    </div>
+    <table class="cal-table">
+      <thead><tr>${headCells}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  </div>`;
+}
+function buildAllMonthsCalendarHtml(){
+  return getCalendarMonths().map(m=>buildMonthCalendarHtml(m.year,m.month)).join('<div style="height:24px"></div>');
+}
+async function exportCalendar(format){
+  document.getElementById('calExportMenu').classList.remove('show');
+  const months = getCalendarMonths();
+  if(!months.length){ alert('目前沒有工作安排，無法產生月曆。'); return; }
+
+  const root = document.getElementById('ganttRenderRoot');
+  const hint = document.getElementById('exportHint');
+  const hintText = document.getElementById('exportHintText');
+  hintText.textContent = format==='pdf' ? '正在產生月曆 PDF，請稍候…' : '正在產生月曆 JPG，請稍候…';
+  hint.classList.add('show');
+
+  try{
+    const fileBase = `${(headerCfg?.title||'施工安排')}_月曆_${new Date().toISOString().slice(0,10)}`;
+    if(format==='jpg'){
+      root.innerHTML = buildAllMonthsCalendarHtml();
+      await new Promise(r=>setTimeout(r,80));
+      const canvas = await html2canvas(root, { scale:2, useCORS:true, backgroundColor:'#FFFFFF' });
+      const a=document.createElement('a');
+      a.href=canvas.toDataURL('image/jpeg',0.93);
+      a.download=`${fileBase}.jpg`;
+      a.click();
+    }else{
+      const { jsPDF } = window.jspdf;
+      let pdf=null;
+      const margin=10;
+      for(let i=0;i<months.length;i++){
+        root.innerHTML = buildMonthCalendarHtml(months[i].year, months[i].month);
+        await new Promise(r=>setTimeout(r,80));
+        const canvas = await html2canvas(root.firstElementChild, { scale:2, useCORS:true, backgroundColor:'#FFFFFF' });
+        const imgData = canvas.toDataURL('image/jpeg',0.93);
+        const pxToMm = 0.264583/2;
+        const chartWmm = canvas.width*pxToMm, chartHmm = canvas.height*pxToMm;
+        const A4 = { w:297, h:210 };
+        const A3 = { w:420, h:297 };
+        const fitsA4 = (chartWmm * ((A4.h-margin*2)/chartHmm)) <= (A4.w-margin*2) || chartWmm <= (A4.w-margin*2);
+        const page = fitsA4 ? A4 : A3;
+        const availW = page.w-margin*2, availH = page.h-margin*2;
+        const scale = Math.min(availW/chartWmm, availH/chartHmm, 1);
+        const drawW = chartWmm*scale, drawH = chartHmm*scale;
+        const offsetX = (page.w-drawW)/2, offsetY=(page.h-drawH)/2;
+        if(!pdf){
+          pdf = new jsPDF({ orientation:'landscape', unit:'mm', format:[page.w,page.h] });
+        }else{
+          pdf.addPage([page.w,page.h],'landscape');
+        }
+        pdf.addImage(imgData, 'JPEG', offsetX, offsetY, drawW, drawH);
+      }
+      pdf.save(`${fileBase}.pdf`);
+    }
+  }catch(e){
+    console.error(e);
+    alert('月曆匯出失敗，請稍後再試');
+  }finally{
+    root.innerHTML='';
     hint.classList.remove('show');
   }
 }
