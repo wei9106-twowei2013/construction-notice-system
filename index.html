@@ -311,7 +311,7 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
 .cal-table th{background:#f0f0f0;font-size:.86rem;font-weight:800;color:#222;
   padding:9px 0;text-align:center;border:1px solid #d8d8d8}
 .cal-table td.cal-cell{border:1px solid #d8d8d8;vertical-align:top;padding:6px;
-  box-sizing:border-box;height:104px;width:14.2857%}
+  box-sizing:border-box;min-height:104px;width:14.2857%}
 .cal-table td.cal-cell-pad{background:#fafafa}
 .cal-daynum{font-size:.84rem;font-weight:800;color:#333;margin-bottom:4px}
 .cal-chip{display:flex;align-items:center;gap:4px;font-size:.68rem;font-weight:600;color:#333;
@@ -2822,7 +2822,6 @@ function buildMonthCalendarHtml(year, month){
   const startOffset = first.getDay(); // 0=Sun
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const totalCells = Math.ceil((startOffset+daysInMonth)/7)*7;
-  const MAX_SHOW = 3;
 
   const headCells = CAL_WD.map(w=>`<th>${w}</th>`).join('');
 
@@ -2839,14 +2838,12 @@ function buildMonthCalendarHtml(year, month){
       }
       const dateKey = `${year}-${pad2(month+1)}-${pad2(dayNum)}`;
       const slots = slotsOnDate(dateKey);
-      const shown = slots.slice(0,MAX_SHOW);
-      const extra = slots.length - shown.length;
-      const chipsHtml = shown.map(s=>{
+      const chipsHtml = slots.map(s=>{
         const cfg = typeCfg(s.type);
         const label = truncateLabel(s.type, 8);
         return `<div class="cal-chip"><span class="cal-chip-dot" style="background:${cfg.color}"></span>${escapeHtml(label)}</div>`;
       }).join('');
-      const moreHtml = extra>0 ? `<div class="cal-more">還有 ${extra} 項</div>` : '';
+      const moreHtml = '';
       rowHtml += `<td class="cal-cell">
         <div class="cal-daynum">${dayNum}</div>
         ${chipsHtml}${moreHtml}
