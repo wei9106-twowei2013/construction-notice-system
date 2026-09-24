@@ -316,9 +316,8 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .day-label{display:flex;align-items:baseline;gap:0;margin-bottom:14px;line-height:1}
 .day-label .year-tag{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.04em;margin-right:3px;align-self:flex-start;padding-top:4px}
 .day-label .date-num{font-size:2.2rem;font-weight:900;color:var(--brand);line-height:1}
-.day-new-mark{font-size:1.6rem;font-weight:900;color:#D81B60;line-height:1;cursor:pointer;
-  margin-right:1px;user-select:none}
-.day-new-mark:hover{opacity:.65}
+.slot-new-mark{font-weight:900;color:#D81B60;cursor:pointer;margin-right:2px;user-select:none}
+.slot-new-mark:hover{opacity:.6}
 .day-label .date-weekday{font-size:.76rem;color:var(--muted);letter-spacing:.1em;font-weight:600;margin-left:6px}
 
 /* ── Timeline ── */
@@ -2037,15 +2036,11 @@ function render(){
     const yr=String(d.getFullYear()).slice(2);
     const mmdd=`${d.getMonth()+1}/${d.getDate()}`;
     const wd=`（${WD[d.getDay()]}）`;
-    const hasNew = !isReadOnlyMode && slots.some(s=>s.isNew);
-    const newMarkHTML = hasNew
-      ? `<span class="day-new-mark" title="這天有新增的工作，點一下可以清除標記" onclick="clearDayNewMark('${dk}')">＊</span>`
-      : '';
 
     html+=`<div class="day-group">
       <div class="day-label">
         <span class="year-tag">'${yr}</span>
-        ${newMarkHTML}<span class="date-num">${mmdd}</span>
+        <span class="date-num">${mmdd}</span>
         <span class="date-weekday">${wd}</span>
       </div>
       <div class="timeline" data-date="${dk}">`;
@@ -2061,7 +2056,11 @@ function render(){
       const timeNoteHTML=s.timeNote?`<div class="time-note">${escapeHtml(s.timeNote)}</div>`:'';
       const timeLabel=s.end?`${s.start}<span class="t-tilde"> ~ </span>${s.end}`:s.start;
       const seqStr = String(seqMap.get(s.id)||1).padStart(3,'0');
-      const dateRangeHTML = s.endDate ? `<div class="date-range">${fmtDateRange(s.date,s.endDate)}</div>` : '';
+      const newMarkHTML = (!isReadOnlyMode && s.isNew)
+        ? `<span class="slot-new-mark" title="新增的工作，點一下可以清除標記" onclick="event.stopPropagation();clearSlotNewMark(${s.id})">＊</span>`
+        : '';
+      const dateRangeHTML = s.endDate ? `<div class="date-range">${newMarkHTML}${fmtDateRange(s.date,s.endDate)}</div>` : '';
+      const timeLabelHTML = s.endDate ? timeLabel : `${newMarkHTML}${timeLabel}`;
 
       html+=`<div class="slot" data-type="${s.type}" data-id="${s.id}" draggable="${isReadOnlyMode?'false':'true'}" style="border-left-color:${cfg.color}">
         <div class="slot-seq">
@@ -2070,7 +2069,7 @@ function render(){
         </div>
         <div class="slot-time" style="color:${cfg.color}">
           ${dateRangeHTML}
-          <div class="time-range">${timeLabel}</div>
+          <div class="time-range">${timeLabelHTML}</div>
           ${timeNoteHTML}
         </div>
         <div class="slot-header">
@@ -2327,10 +2326,10 @@ function deleteSlot(id){
   data=data.filter(x=>x.id!==id);
   render();scheduleSave();
 }
-/* 清除某一天所有工作項目的「新增」標記（點擊日期前的星號觸發） */
-function clearDayNewMark(dateKey){
-  data.forEach(s=>{ if(s.date===dateKey && s.isNew) s.isNew=false; });
-  render();scheduleSave();
+/* 清除單一工作項目的「新增」標記（點擊該項目日期/時間前的星號觸發） */
+function clearSlotNewMark(id){
+  const s = data.find(x=>x.id===id);
+  if(s && s.isNew){ s.isNew=false; render(); scheduleSave(); }
 }
 
 /* ══════════════════════════════════════
