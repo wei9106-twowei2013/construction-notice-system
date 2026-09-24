@@ -36,10 +36,10 @@
 </script>
 <style>
 :root {
-  --brand:#8B1A5C; --brand-light:#B5256F; --brand-dark:#5E1040;
+  --brand:#80255A; --brand-light:#A7336F; --brand-dark:#56183E;
   --bg:#FAF8FB; --surface:#FFF; --border:#E8DFF0;
   --text:#1A0A12; --muted:#7A6A72; --radius:10px;
-  --shadow:0 2px 12px rgba(139,26,92,.08);
+  --shadow:0 2px 12px rgba(128,37,90,.08);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans TC','Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
@@ -130,7 +130,7 @@ a{color:inherit}
 .notice-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
   padding:18px 20px;cursor:pointer;transition:box-shadow .15s,transform .1s,opacity .15s;position:relative;
   display:flex;flex-direction:column;gap:8px}
-.notice-card:hover{box-shadow:0 8px 28px rgba(139,26,92,.16);transform:translateY(-2px)}
+.notice-card:hover{box-shadow:0 8px 28px rgba(128,37,90,.16);transform:translateY(-2px)}
 .notice-card.dragging{opacity:.4}
 .notice-card.drag-over-left{box-shadow:inset 3px 0 0 0 var(--brand)}
 .notice-card.drag-over-right{box-shadow:inset -3px 0 0 0 var(--brand)}
@@ -164,7 +164,7 @@ a{color:inherit}
 .empty-list svg{margin-bottom:14px;opacity:.3}
 
 .fab{position:fixed;right:24px;bottom:24px;width:56px;height:56px;border-radius:50%;
-  background:var(--brand);color:#fff;border:none;box-shadow:0 6px 20px rgba(139,26,92,.4);
+  background:var(--brand);color:#fff;border:none;box-shadow:0 6px 20px rgba(128,37,90,.4);
   display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s;z-index:50}
 .fab:hover{transform:scale(1.08)}
 
@@ -325,7 +325,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   border:1px solid var(--border);border-left:4px solid var(--brand);
   border-radius:var(--radius);padding:14px 16px 12px;box-shadow:var(--shadow);
   transition:box-shadow .15s,opacity .15s,transform .12s}
-.slot:hover{box-shadow:0 4px 20px rgba(139,26,92,.13)}
+.slot:hover{box-shadow:0 4px 20px rgba(128,37,90,.13)}
 .slot.dragging{opacity:.4}
 .slot.drag-over-top{box-shadow:inset 0 3px 0 0 var(--brand)}
 .slot.drag-over-bottom{box-shadow:inset 0 -3px 0 0 var(--brand)}
@@ -416,7 +416,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   z-index:100;align-items:center;justify-content:center;padding:16px}
 .modal-bg.open{display:flex}
 .modal{background:var(--surface);border-radius:14px;width:100%;max-width:560px;
-  box-shadow:0 12px 48px rgba(139,26,92,.22);overflow:hidden;max-height:92vh;display:flex;flex-direction:column}
+  box-shadow:0 12px 48px rgba(128,37,90,.22);overflow:hidden;max-height:92vh;display:flex;flex-direction:column}
 .modal-head{background:linear-gradient(135deg,var(--brand-dark),var(--brand));
   color:#fff;padding:16px 22px;font-size:1rem;font-weight:700;
   display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -457,6 +457,11 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 
 /* ── Assignee manager modal ── */
 .am-modal{max-width:420px}
+.tm-hint{font-size:.76rem;color:var(--muted);margin-bottom:12px;line-height:1.5}
+.tm-add-row{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.tm-add-row input[type=text]{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:.82rem}
+.tm-add-row input[type=text]:focus{outline:none;border-color:var(--brand)}
+.tm-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .am-list{display:flex;flex-direction:column;gap:16px;max-height:420px;overflow-y:auto}
 .am-row{display:flex;flex-direction:column;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border)}
 .am-row:last-child{border-bottom:none;padding-bottom:0}
@@ -613,6 +618,9 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   </symbol>
   <symbol id="ico-layout" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <rect x="1.5" y="1.5" width="13" height="13" rx="1.5"/><path d="M1.5 6h13M6 6v8.5"/>
+  </symbol>
+  <symbol id="ico-tag" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1.5 8.3V2.5a1 1 0 011-1h5.8a1 1 0 01.7.3l6 6a1 1 0 010 1.4l-5.8 5.8a1 1 0 01-1.4 0l-6-6a1 1 0 01-.3-.7z"/><circle cx="5" cy="5" r="1.2" fill="currentColor" stroke="none"/>
   </symbol>
   <symbol id="ico-palette" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M8 1.5a6.5 6.5 0 100 13 2 2 0 000-4 2 2 0 012-2h2a2.5 2.5 0 000-5A6.5 6.5 0 008 1.5z"/>
@@ -797,28 +805,15 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
           </div>
           <select id="filterType">
             <option value="">全部工種</option>
-            <option value="水電">水電</option>
-            <option value="圖威">圖威</option>
-            <option value="文保">文保</option>
-            <option value="木工">木工</option>
-            <option value="油漆">油漆</option>
-            <option value="大圖輸出">大圖輸出</option>
-            <option value="貼圖">貼圖</option>
-            <option value="美術">美術</option>
-            <option value="多媒體">多媒體</option>
-            <option value="清潔">清潔</option>
-            <option value="燈光">燈光</option>
-            <option value="文宣品">文宣品</option>
-            <option value="攝影">攝影</option>
-            <option value="腳本企劃">腳本企劃</option>
-            <option value="展示設計">展示設計</option>
-            <option value="其他">其他</option>
           </select>
           <button class="btn btn-primary" id="addBtn" onclick="openModal()">
             <svg class="icon" width="13" height="13"><use href="#ico-plus"/></svg> 新增工作
           </button>
           <button class="btn btn-ghost" onclick="openAssigneeManager()">
             <svg class="icon" width="14" height="14"><use href="#ico-person"/></svg> 人員顏色
+          </button>
+          <button class="btn btn-ghost" onclick="openTypeManager()">
+            <svg class="icon" width="14" height="14"><use href="#ico-tag"/></svg> 工項管理
           </button>
           <button class="btn btn-ghost" onclick="window.print()">
             <svg class="icon" width="14" height="14"><use href="#ico-print"/></svg> 列印
@@ -896,24 +891,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
       </div>
       <div class="field">
         <label>工種</label>
-        <select id="f_type">
-          <option value="水電">水電</option>
-          <option value="圖威">圖威</option>
-          <option value="文保">文保</option>
-          <option value="木工">木工</option>
-          <option value="油漆">油漆</option>
-          <option value="大圖輸出">大圖輸出</option>
-          <option value="貼圖">貼圖</option>
-          <option value="美術">美術</option>
-          <option value="多媒體">多媒體</option>
-          <option value="清潔">清潔</option>
-          <option value="燈光">燈光</option>
-          <option value="文宣品">文宣品</option>
-          <option value="攝影">攝影</option>
-          <option value="腳本企劃">腳本企劃</option>
-          <option value="展示設計">展示設計</option>
-          <option value="其他">其他</option>
-        </select>
+        <select id="f_type"></select>
       </div>
       <div class="field-row">
         <div class="field">
@@ -1010,6 +988,30 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
     </div>
     <div class="modal-foot">
       <button class="btn btn-primary" style="background:var(--brand);color:#fff" onclick="closeAM()">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Type Manager Modal ── -->
+<div class="modal-bg" id="tmBg">
+  <div class="modal am-modal">
+    <div class="modal-head">
+      <svg class="icon" width="16" height="16"><use href="#ico-tag"/></svg>
+      <span>工項管理</span>
+    </div>
+    <div class="modal-body">
+      <p class="tm-hint">內建工項無法刪除。自訂工項（標示＊）可以刪除，新增的工項也會套用到所有通告。</p>
+      <div class="am-list" id="tmList"></div>
+      <div class="tm-add-row">
+        <input type="text" id="tm_newName" placeholder="新增自訂工項名稱" maxlength="20">
+        <span class="am-swatch am-swatch-sm am-swatch-custom" title="選擇顏色">
+          <input type="color" id="tm_newColor" value="#7C9473">
+        </span>
+        <button class="btn btn-primary btn-sm" style="background:var(--brand);color:#fff" onclick="addCustomType()">新增</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" style="background:var(--brand);color:#fff" onclick="closeTM()">完成</button>
     </div>
   </div>
 </div>
@@ -1200,7 +1202,7 @@ function checkAuth(){
 /* ══════════════════════════════════════
    TYPE CONFIG
 ══════════════════════════════════════ */
-const TYPE_CFG = {
+const BASE_TYPE_CFG = {
   '水電':  { color:'#1AADCE', ico:'ico-bolt'   },
   '圖威':  { color:'#E07B2A', ico:'ico-img2'   },
   '文保':  { color:'#EC9A9A', ico:'ico-shield' },
@@ -1218,6 +1220,46 @@ const TYPE_CFG = {
   '展示設計':{ color:'#6A4C93', ico:'ico-layout' },
   '其他':  { color:'#4A7C6F', ico:'ico-wrench' },
 };
+/* 使用者自訂工項（可新增/刪除，顯示時會加上「＊」）。第一次啟用時的預設值，
+   之後改由 Firestore 全域設定接管，這裡僅作為尚無雲端資料時的種子。 */
+const DEFAULT_CUSTOM_TYPES = {
+  '玻璃+封膠': { color:'#75B5D1' },
+  '壓克力製品': { color:'#C69C39' },
+  '環景攝影': { color:'#438983' },
+};
+let customTypes = {}; // name -> {color}; populated from global app config at boot
+const CUSTOM_TYPE_ICO = 'ico-tag';
+
+function typeCfg(name){
+  if(customTypes[name]) return { ico:CUSTOM_TYPE_ICO, ...customTypes[name] };
+  return BASE_TYPE_CFG[name] || BASE_TYPE_CFG['其他'];
+}
+function isCustomType(name){ return !!customTypes[name]; }
+/* 所有工項名稱（含自訂），順序固定：內建工項在前，自訂工項居中，「其他」永遠最後 */
+function mergedTypeNames(){
+  const baseKeys = Object.keys(BASE_TYPE_CFG).filter(k=>k!=='其他');
+  return [...baseKeys, ...Object.keys(customTypes), '其他'];
+}
+/* 下拉選單顯示用文字：自訂工項前面加「＊」 */
+function typeDisplayLabel(name){ return isCustomType(name) ? `＊${name}` : name; }
+/* 重新產生「篩選工種」與「新增/編輯工作」的工種下拉選單（含自訂工項） */
+function renderTypeSelectOptions(){
+  const optsHtml = mergedTypeNames().map(t=>
+    `<option value="${escapeHtml(t)}">${escapeHtml(typeDisplayLabel(t))}</option>`
+  ).join('');
+  const filterSel = document.getElementById('filterType');
+  if(filterSel){
+    const prevVal = filterSel.value;
+    filterSel.innerHTML = `<option value="">全部工種</option>${optsHtml}`;
+    if([...filterSel.options].some(o=>o.value===prevVal)) filterSel.value = prevVal;
+  }
+  const fTypeSel = document.getElementById('f_type');
+  if(fTypeSel){
+    const prevVal = fTypeSel.value;
+    fTypeSel.innerHTML = optsHtml;
+    if([...fTypeSel.options].some(o=>o.value===prevVal)) fTypeSel.value = prevVal;
+  }
+}
 
 /* ══════════════════════════════════════
    ASSIGNEE COLOURS (per-notice)
@@ -1257,12 +1299,23 @@ function assigneeColor(name){
       nameColorMap[name]=PALETTE[paletteIdx%PALETTE.length];
       paletteIdx++;
     }
+    scheduleAppConfigSave();
   }
   return nameColorMap[name];
 }
 function seedColors(arr){
   const seen=new Set();
   arr.forEach(s=>(s.assignees||[]).forEach(a=>{if(!seen.has(a)){seen.add(a);assigneeColor(a);}}));
+}
+/* 把某份通告裡的舊（通告內建）人員顏色，補進全域顏色表裡「還沒有」的人名，
+   不會覆蓋全域表已經指定過的顏色 */
+function mergeLegacyNameColors(legacyMap){
+  if(!legacyMap) return;
+  let changed=false;
+  Object.keys(legacyMap).forEach(name=>{
+    if(!nameColorMap[name]){ nameColorMap[name]=legacyMap[name]; changed=true; }
+  });
+  if(changed) scheduleAppConfigSave();
 }
 
 /* ══════════════════════════════════════
@@ -1320,6 +1373,19 @@ async function fsDeleteNotice(id){
   await FB.deleteDoc(ref);
 }
 
+/* ── 全域設定（跨所有通告共用）：自訂工項、人員顏色表 ── */
+const APP_CONFIG_COLLECTION = 'app_config';
+const APP_CONFIG_DOC = 'global';
+async function fsGetAppConfig(){
+  const ref = FB.doc(FB.db, APP_CONFIG_COLLECTION, APP_CONFIG_DOC);
+  const snap = await FB.getDoc(ref);
+  return snap.exists() ? snap.data() : null;
+}
+async function fsSaveAppConfig(payload){
+  const ref = FB.doc(FB.db, APP_CONFIG_COLLECTION, APP_CONFIG_DOC);
+  await FB.setDoc(ref, payload, { merge:true });
+}
+
 function genId(){
   return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 }
@@ -1352,9 +1418,35 @@ function getUrlParam(name){
   return new URLSearchParams(window.location.search).get(name);
 }
 
+async function loadAppConfig(){
+  try{
+    const cfg = await fsGetAppConfig();
+    if(cfg){
+      customTypes = cfg.customTypes || {};
+      nameColorMap = cfg.nameColorMap || {};
+      paletteIdx = cfg.paletteIdx || 0;
+    }else{
+      // first run on this Firebase project: seed the default custom types
+      customTypes = { ...DEFAULT_CUSTOM_TYPES };
+      nameColorMap = {};
+      paletteIdx = 0;
+      fsSaveAppConfig({ customTypes, nameColorMap, paletteIdx }).catch(e=>console.error(e));
+    }
+  }catch(e){ console.error(e); }
+  renderTypeSelectOptions();
+}
+let appConfigSaveTimer = null;
+function scheduleAppConfigSave(){
+  if(appConfigSaveTimer) clearTimeout(appConfigSaveTimer);
+  appConfigSaveTimer = setTimeout(()=>{
+    fsSaveAppConfig({ customTypes, nameColorMap, paletteIdx }).catch(e=>console.error(e));
+  }, 600);
+}
+
 async function bootApp(){
   document.getElementById('loadingOverlay').classList.remove('hide');
   await waitForFirebase();
+  await loadAppConfig();
   document.getElementById('appRoot').classList.add('show');
   document.getElementById('loadingOverlay').classList.add('hide');
   if(isReadOnlyMode && readOnlyNoticeId){
@@ -1699,15 +1791,14 @@ async function setNoticeStatus(id, status){
   }catch(e){ console.error(e); }
 }
 const SHARE_LINK_BASE = 'https://construction-notice-share.wei9106.workers.dev/';
-const SHARE_TYPE_LIST = ['水電','圖威','文保','木工','油漆','大圖輸出','貼圖','美術','多媒體','清潔','燈光','文宣品','攝影','腳本企劃','展示設計','其他'];
 
 function openShareTypeMenu(id){
   const menu = document.getElementById('ncMenu');
-  const typeButtons = SHARE_TYPE_LIST.map(t=>{
-    const cfg = TYPE_CFG[t];
+  const typeButtons = mergedTypeNames().map(t=>{
+    const cfg = typeCfg(t);
     return `<button onclick="copyShareLink('${id}','${t}')">
       <span style="width:8px;height:8px;border-radius:50%;background:${cfg?.color||'#999'};display:inline-block;flex-shrink:0"></span>
-      ${t}
+      ${typeDisplayLabel(t)}
     </button>`;
   }).join('');
   menu.innerHTML = `
@@ -1835,8 +1926,9 @@ async function openNotice(id){
   currentNoticeId = id;
   data = notice.data || [];
   nextId = notice.nextId || (data.reduce((m,s)=>Math.max(m,s.id||0),0)+1);
-  nameColorMap = notice.nameColorMap || {};
-  paletteIdx = notice.paletteIdx || 0;
+  // 人員顏色現在是全域共用（見 loadAppConfig）；這裡只把這份通告裡「還沒出現在
+  // 全域表」的舊人員顏色補進去，不會用它覆蓋掉全域表已經有的顏色
+  mergeLegacyNameColors(notice.nameColorMap);
   headerCfg = Object.assign({}, HD_DEFAULTS, notice.headerCfg||{});
   seedColors(data);
   ensureOrderFields();
@@ -1926,9 +2018,10 @@ function render(){
     </div>`;return;
   }
 
-  const legendHTML=Object.entries(TYPE_CFG).map(([k,v])=>
-    `<span class="legend-item"><span class="legend-dot" style="background:${v.color}"></span>${svgIcon(v.ico,12)} ${k}</span>`
-  ).join('');
+  const legendHTML=mergedTypeNames().map(k=>{
+    const v=typeCfg(k);
+    return `<span class="legend-item"><span class="legend-dot" style="background:${v.color}"></span>${svgIcon(v.ico,12)} ${typeDisplayLabel(k)}</span>`;
+  }).join('');
   let html=`<div class="legend">${legendHTML}</div>`;
 
   // global sequence number across ALL visible slots, ordered by (date, order)
@@ -1951,7 +2044,7 @@ function render(){
       <div class="timeline" data-date="${dk}">`;
 
     slots.forEach(s=>{
-      const cfg=TYPE_CFG[s.type]||TYPE_CFG['其他'];
+      const cfg=typeCfg(s.type);
       const pills=(s.assignees||[]).map(a=>{
         const ac=assigneeColor(a);
         return `<span class="assignee-pill" style="background:${ac};color:${pillTextColor(ac)}"
@@ -1963,18 +2056,18 @@ function render(){
       const seqStr = String(seqMap.get(s.id)||1).padStart(3,'0');
       const dateRangeHTML = s.endDate ? `<div class="date-range">${fmtDateRange(s.date,s.endDate)}</div>` : '';
 
-      html+=`<div class="slot" data-type="${s.type}" data-id="${s.id}" draggable="${isReadOnlyMode?'false':'true'}">
+      html+=`<div class="slot" data-type="${s.type}" data-id="${s.id}" draggable="${isReadOnlyMode?'false':'true'}" style="border-left-color:${cfg.color}">
         <div class="slot-seq">
           <span class="seq-num">${seqStr}</span>
           <span class="drag-handle" title="拖曳排序">${svgIcon('ico-grip',14)}</span>
         </div>
-        <div class="slot-time">
+        <div class="slot-time" style="color:${cfg.color}">
           ${dateRangeHTML}
           <div class="time-range">${timeLabel}</div>
           ${timeNoteHTML}
         </div>
         <div class="slot-header">
-          <span class="type-badge" style="background:${cfg.color}">${svgIcon(cfg.ico,13)} ${s.type}</span>
+          <span class="type-badge" style="background:${cfg.color}">${svgIcon(cfg.ico,13)} ${typeDisplayLabel(s.type)}</span>
           ${venueHTML}
         </div>
         <div class="slot-body">${s.desc}</div>
@@ -2178,6 +2271,7 @@ function renderAssigneeColorPickers(names){
 }
 function pickFormAssigneeColor(name,color,el){
   nameColorMap[name]=color;
+  scheduleAppConfigSave();
   const row = el.closest('.form-assignee-color-row');
   const preview = row ? row.querySelector('.am-pill-prev') : null;
   if(preview){ preview.style.background=color; preview.style.color=pillTextColor(color); }
@@ -2328,6 +2422,7 @@ function openAssigneeManager(){
 }
 function updateAssigneeColor(name,color,swatchEl){
   nameColorMap[name]=color;
+  scheduleAppConfigSave();
   // update the row's preview pill
   const grid = swatchEl.closest('.am-swatch-grid');
   const row = grid ? grid.closest('.am-row') : null;
@@ -2336,6 +2431,53 @@ function updateAssigneeColor(name,color,swatchEl){
   render();scheduleSave();
 }
 function closeAM(){document.getElementById('amBg').classList.remove('open');}
+
+/* ── Type Manager (自訂工項的新增／刪除) ── */
+function openTypeManager(){
+  if(isReadOnlyMode) return;
+  renderTypeManagerList();
+  document.getElementById('tmBg').classList.add('open');
+}
+function closeTM(){ document.getElementById('tmBg').classList.remove('open'); }
+function renderTypeManagerList(){
+  const list=document.getElementById('tmList');
+  const customNames=Object.keys(customTypes);
+  if(!customNames.length){
+    list.innerHTML='<p class="tm-hint" style="margin:0">目前沒有自訂工項，可以在下方新增。</p>';
+    return;
+  }
+  list.innerHTML = customNames.map(name=>{
+    const cfg = typeCfg(name);
+    return `<div class="am-row tm-row">
+      <span class="am-pill-prev" style="background:${cfg.color};color:${pillTextColor(cfg.color)}">＊${escapeHtml(name)}</span>
+      <button class="btn btn-sm btn-delete-themed" onclick="deleteCustomType('${escAttr(name)}')">
+        ${svgIcon('ico-trash',12)} 刪除
+      </button>
+    </div>`;
+  }).join('');
+}
+function addCustomType(){
+  const nameInput = document.getElementById('tm_newName');
+  const colorInput = document.getElementById('tm_newColor');
+  const name = nameInput.value.trim();
+  if(!name){ alert('請輸入工項名稱'); return; }
+  if(mergedTypeNames().includes(name)){ alert('這個工項名稱已經存在了'); return; }
+  customTypes[name] = { color: colorInput.value };
+  scheduleAppConfigSave();
+  nameInput.value='';
+  renderTypeManagerList();
+  renderTypeSelectOptions();
+  render();
+}
+function deleteCustomType(name){
+  if(!confirm(`確定要刪除工項「${name}」嗎？已經使用這個工項的工作項目不會被刪除，但會顯示為未分類的顏色。`)) return;
+  delete customTypes[name];
+  scheduleAppConfigSave();
+  renderTypeManagerList();
+  renderTypeSelectOptions();
+  render();
+}
+
 
 /* ══════════════════════════════════════
    EXPORT JPG
@@ -2443,7 +2585,7 @@ function buildGanttHtml(){
   const headerCells = weeks.map(w=>`<th colspan="7" class="wk-start">${fmtMD(w.start)}~${fmtMD(w.end)}</th>`).join('');
 
   const bodyRows = rows.map((s,i)=>{
-    const cfg = TYPE_CFG[s.type] || TYPE_CFG['其他'];
+    const cfg = typeCfg(s.type);
     const startD = new Date(s.date+'T00:00:00');
     const endD = s.endDate ? new Date(s.endDate+'T00:00:00') : startD;
 
@@ -2483,7 +2625,7 @@ function buildGanttHtml(){
       <td class="gantt-idx-cell"><span style="color:${cfg.color}">${idxStr}</span></td>
       <td class="gantt-label-cell">
         <div class="glc-inner">
-          <div class="glc-type"><span class="glc-dot" style="background:${cfg.color}"></span>${s.type}</div>
+          <div class="glc-type"><span class="glc-dot" style="background:${cfg.color}"></span>${typeDisplayLabel(s.type)}</div>
           <div class="glc-desc">${escapeHtml(descText)}</div>
         </div>
       </td>
@@ -2493,8 +2635,8 @@ function buildGanttHtml(){
 
   const usedTypes = [...new Set(rows.map(s=>s.type))];
   const legendHtml = usedTypes.map(t=>{
-    const cfg = TYPE_CFG[t] || TYPE_CFG['其他'];
-    return `<span class="gantt-legend-item"><span class="gantt-legend-dot" style="background:${cfg.color}"></span>${t}</span>`;
+    const cfg = typeCfg(t);
+    return `<span class="gantt-legend-item"><span class="gantt-legend-dot" style="background:${cfg.color}"></span>${typeDisplayLabel(t)}</span>`;
   }).join('');
 
   return `<div class="gantt-wrap">
