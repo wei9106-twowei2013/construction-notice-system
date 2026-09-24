@@ -2781,6 +2781,12 @@ async function exportGantt(format){
 ══════════════════════════════════════ */
 const CAL_WD = ['日','一','二','三','四','五','六'];
 function pad2(n){ return String(n).padStart(2,'0'); }
+/* 手動截斷文字並補上刪節號：html2canvas 對 CSS 的 text-overflow:ellipsis 支援不穩定，
+   實測會讓文字直接溢出格子外，所以改在產生 HTML 前就把字串裁短 */
+function truncateLabel(text, maxLen){
+  if(!text) return '';
+  return text.length>maxLen ? text.slice(0,maxLen)+'…' : text;
+}
 
 // 通告資料涵蓋到的所有月份（含跨日工作的結束月），依時間順序，不重複
 function getCalendarMonths(){
@@ -2815,7 +2821,7 @@ function buildMonthCalendarHtml(year, month){
   const startOffset = first.getDay(); // 0=Sun
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const totalCells = Math.ceil((startOffset+daysInMonth)/7)*7;
-  const MAX_SHOW = 4;
+  const MAX_SHOW = 3;
 
   const headCells = CAL_WD.map(w=>`<th>${w}</th>`).join('');
 
@@ -2836,7 +2842,7 @@ function buildMonthCalendarHtml(year, month){
       const extra = slots.length - shown.length;
       const chipsHtml = shown.map(s=>{
         const cfg = typeCfg(s.type);
-        const label = spaceNumberedItems(stripHtmlToText(s.desc||'')) || s.type;
+        const label = truncateLabel(s.type, 8);
         return `<div class="cal-chip" style="background:${cfg.color}">${escapeHtml(label)}</div>`;
       }).join('');
       const moreHtml = extra>0 ? `<div class="cal-more">還有 ${extra} 項</div>` : '';
