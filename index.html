@@ -314,8 +314,9 @@ header{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,v
   box-sizing:border-box;height:104px;width:14.2857%}
 .cal-table td.cal-cell-pad{background:#fafafa}
 .cal-daynum{font-size:.84rem;font-weight:800;color:#333;margin-bottom:4px}
-.cal-chip{font-size:.64rem;font-weight:600;color:#fff;padding:2px 6px;border-radius:4px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.cal-chip{display:flex;align-items:center;gap:4px;font-size:.68rem;font-weight:600;color:#333;
+  white-space:nowrap;overflow:hidden;margin-bottom:3px}
+.cal-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .cal-more{font-size:.6rem;color:var(--muted)}
 
 /* ── Main ── */
@@ -2843,7 +2844,7 @@ function buildMonthCalendarHtml(year, month){
       const chipsHtml = shown.map(s=>{
         const cfg = typeCfg(s.type);
         const label = truncateLabel(s.type, 8);
-        return `<div class="cal-chip" style="background:${cfg.color}">${escapeHtml(label)}</div>`;
+        return `<div class="cal-chip"><span class="cal-chip-dot" style="background:${cfg.color}"></span>${escapeHtml(label)}</div>`;
       }).join('');
       const moreHtml = extra>0 ? `<div class="cal-more">還有 ${extra} 項</div>` : '';
       rowHtml += `<td class="cal-cell">
