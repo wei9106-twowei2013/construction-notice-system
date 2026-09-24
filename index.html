@@ -2306,7 +2306,7 @@ function saveSlot(){
       const prev=data[i];
       const dateChanged = prev.date !== date;
       const order = dateChanged ? nextOrderForDate(date) : (prev.order??0);
-      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,order,isNew:prev.isNew};
+      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,order,isNew:!!prev.isNew};
     }
   }else{
     const order = nextOrderForDate(date);
