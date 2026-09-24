@@ -1002,7 +1002,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
       <span>工項管理</span>
     </div>
     <div class="modal-body">
-      <p class="tm-hint">內建工項無法刪除。自訂工項（標示＊）可以刪除，新增的工項也會套用到所有通告。</p>
+      <p class="tm-hint">內建工項無法刪除。下方列出的是自訂工項，可以刪除；新增的工項會套用到所有通告。</p>
       <div class="am-list" id="tmList"></div>
       <div class="tm-add-row">
         <input type="text" id="tm_newName" placeholder="新增自訂工項名稱" maxlength="20">
@@ -1222,7 +1222,7 @@ const BASE_TYPE_CFG = {
   '展示設計':{ color:'#6A4C93', ico:'ico-layout' },
   '其他':  { color:'#4A7C6F', ico:'ico-wrench' },
 };
-/* 使用者自訂工項（可新增/刪除，顯示時會加上「＊」）。第一次啟用時的預設值，
+/* 使用者自訂工項（可透過「工項管理」新增/刪除）。第一次啟用時的預設值，
    之後改由 Firestore 全域設定接管，這裡僅作為尚無雲端資料時的種子。 */
 const DEFAULT_CUSTOM_TYPES = {
   '玻璃+封膠': { color:'#75B5D1' },
@@ -1242,8 +1242,8 @@ function mergedTypeNames(){
   const baseKeys = Object.keys(BASE_TYPE_CFG).filter(k=>k!=='其他');
   return [...baseKeys, ...Object.keys(customTypes), '其他'];
 }
-/* 下拉選單顯示用文字：自訂工項前面加「＊」 */
-function typeDisplayLabel(name){ return isCustomType(name) ? `＊${name}` : name; }
+/* 下拉選單等處顯示用的工項名稱（不再加註記號，內建與自訂工項顯示方式一致） */
+function typeDisplayLabel(name){ return name; }
 /* 重新產生「篩選工種」與「新增/編輯工作」的工種下拉選單（含自訂工項） */
 function renderTypeSelectOptions(){
   const optsHtml = mergedTypeNames().map(t=>
@@ -2022,7 +2022,7 @@ function render(){
 
   const legendHTML=mergedTypeNames().map(k=>{
     const v=typeCfg(k);
-    return `<span class="legend-item"><span class="legend-dot" style="background:${v.color}"></span>${svgIcon(v.ico,12)} ${typeDisplayLabel(k)}</span>`;
+    return `<span class="legend-item"><span class="legend-dot" style="background:${v.color}"></span>${svgIcon(v.ico,12)} ${k}</span>`;
   }).join('');
   let html=`<div class="legend">${legendHTML}</div>`;
 
@@ -2057,7 +2057,7 @@ function render(){
       const timeLabel=s.end?`${s.start}<span class="t-tilde"> ~ </span>${s.end}`:s.start;
       const seqStr = String(seqMap.get(s.id)||1).padStart(3,'0');
       const newMarkHTML = (!isReadOnlyMode && s.isNew)
-        ? `<span class="slot-new-mark" title="新增的工作，點一下可以清除標記" onclick="event.stopPropagation();clearSlotNewMark(${s.id})">＊</span>`
+        ? `<span class="slot-new-mark" title="這筆工作有異動，點一下可以清除標記" onclick="event.stopPropagation();clearSlotNewMark(${s.id})">＊</span>`
         : '';
       const dateRangeHTML = s.endDate ? `<div class="date-range">${newMarkHTML}${fmtDateRange(s.date,s.endDate)}</div>` : '';
       const timeLabelHTML = s.endDate ? timeLabel : `${newMarkHTML}${timeLabel}`;
@@ -2306,11 +2306,11 @@ function saveSlot(){
       const prev=data[i];
       const dateChanged = prev.date !== date;
       const order = dateChanged ? nextOrderForDate(date) : (prev.order??0);
-      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,order,isNew:!!prev.isNew};
+      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,order,isNew:true};
     }
   }else{
     const order = nextOrderForDate(date);
-    data.push({id:nextId,date,endDate,type,start,end,timeNote,desc,assignees,venue,order,isNew:true});
+    data.push({id:nextId,date,endDate,type,start,end,timeNote,desc,assignees,venue,order,isNew:false});
     nextId++;
   }
   closeModal();render();scheduleSave();
@@ -2326,7 +2326,7 @@ function deleteSlot(id){
   data=data.filter(x=>x.id!==id);
   render();scheduleSave();
 }
-/* 清除單一工作項目的「新增」標記（點擊該項目日期/時間前的星號觸發） */
+/* 清除單一工作項目的「異動」標記（點擊該項目日期/時間前的星號觸發） */
 function clearSlotNewMark(id){
   const s = data.find(x=>x.id===id);
   if(s && s.isNew){ s.isNew=false; render(); scheduleSave(); }
@@ -2460,7 +2460,7 @@ function renderTypeManagerList(){
   list.innerHTML = customNames.map(name=>{
     const cfg = typeCfg(name);
     return `<div class="am-row tm-row">
-      <span class="am-pill-prev" style="background:${cfg.color};color:${pillTextColor(cfg.color)}">＊${escapeHtml(name)}</span>
+      <span class="am-pill-prev" style="background:${cfg.color};color:${pillTextColor(cfg.color)}">${escapeHtml(name)}</span>
       <button class="btn btn-sm btn-delete-themed" onclick="deleteCustomType('${escAttr(name)}')">
         ${svgIcon('ico-trash',12)} 刪除
       </button>
