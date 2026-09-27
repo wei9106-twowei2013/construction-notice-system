@@ -406,6 +406,9 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .type-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 8px;
   border-radius:20px;font-size:.75rem;font-weight:700;color:#fff;letter-spacing:.04em}
 .slot-venue{font-size:.73rem;color:var(--muted);margin-left:auto;display:flex;align-items:center;gap:4px}
+.slot-filelink{display:inline-flex;align-items:center;gap:5px;margin-top:9px;
+  font-size:.78rem;font-weight:600;color:var(--brand);text-decoration:none}
+.slot-filelink:hover{text-decoration:underline}
 .slot-body{font-size:.88rem;color:#2a1a20;line-height:1.7}
 
 /* ── Assignee pills ── */
@@ -999,6 +1002,10 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
       <div class="field">
         <label>地點／備註</label>
         <input type="text" id="f_venue" placeholder="一樓展場">
+      </div>
+      <div class="field">
+        <label>相關檔案連結（Google 雲端硬碟等）</label>
+        <input type="url" id="f_filelink" placeholder="https://drive.google.com/...">
       </div>
     </div>
     <div class="modal-foot">
@@ -2165,6 +2172,9 @@ function render(){
           onclick="editSlot(${s.id})" title="點擊編輯此工作">${escapeHtml(a)}</span>`;
       }).join('');
       const venueHTML=s.venue?`<span class="slot-venue">${escapeHtml(s.venue)}</span>`:'';
+      const fileLinkHTML = s.fileLink
+        ? `<a class="slot-filelink" href="${escapeHtml(s.fileLink)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${svgIcon('ico-link',12)} 查看相關檔案</a>`
+        : '';
       const timeNoteHTML=s.timeNote?`<div class="time-note">${escapeHtml(s.timeNote)}</div>`:'';
       const timeLabel=s.end?`${s.start}<span class="t-tilde"> ~ </span>${s.end}`:s.start;
       const seqStr = String(seqMap.get(s.id)||1).padStart(3,'0');
@@ -2190,6 +2200,7 @@ function render(){
         </div>
         <div class="slot-body">${s.desc}</div>
         <div class="slot-assignees">${pills}</div>
+        ${fileLinkHTML}
         <div class="slot-actions">
           <button class="btn btn-ghost btn-sm" onclick="editSlot(${s.id})"
             style="color:var(--brand);border-color:var(--border)">
@@ -2338,6 +2349,7 @@ function openModal(){
   document.getElementById('f_desc').innerHTML='';
   document.getElementById('f_assignees').value='';
   document.getElementById('f_venue').value=headerCfg?.venue||'';
+  document.getElementById('f_filelink').value='';
   renderAssigneeColorPickers([]);
   document.getElementById('modalBg').classList.add('open');
 }
@@ -2355,6 +2367,7 @@ function editSlot(id){
   document.getElementById('f_desc').innerHTML=s.desc;
   document.getElementById('f_assignees').value=(s.assignees||[]).join(', ');
   document.getElementById('f_venue').value=s.venue||'';
+  document.getElementById('f_filelink').value=s.fileLink||'';
   renderAssigneeColorPickers(s.assignees||[]);
   document.getElementById('modalBg').classList.add('open');
 }
@@ -2406,9 +2419,11 @@ function saveSlot(){
   const desc=document.getElementById('f_desc').innerHTML.trim();
   const ar=document.getElementById('f_assignees').value;
   const venue=document.getElementById('f_venue').value.trim();
+  const fileLink=document.getElementById('f_filelink').value.trim();
   if(!date||!start||!desc){alert('請填寫日期、開始時間與工作內容');return;}
   if(endDate && endDate<date){alert('結束日期不能早於開始日期');return;}
   if(endDate===date) endDate=''; // same day -> not a multi-day span
+  if(fileLink && !/^https?:\/\//i.test(fileLink)){alert('相關檔案連結請填寫完整網址（需以 http:// 或 https:// 開頭）');return;}
   const assignees=ar.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
   assignees.forEach(a=>assigneeColor(a));
 
@@ -2418,11 +2433,11 @@ function saveSlot(){
       const prev=data[i];
       const dateChanged = prev.date !== date;
       const order = dateChanged ? nextOrderForDate(date) : (prev.order??0);
-      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,order,isNew:true};
+      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,fileLink,order,isNew:true};
     }
   }else{
     const order = nextOrderForDate(date);
-    data.push({id:nextId,date,endDate,type,start,end,timeNote,desc,assignees,venue,order,isNew:false});
+    data.push({id:nextId,date,endDate,type,start,end,timeNote,desc,assignees,venue,fileLink,order,isNew:false});
     nextId++;
   }
   closeModal();render();scheduleSave();
