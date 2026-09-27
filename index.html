@@ -1445,6 +1445,7 @@ const HD_DEFAULTS = {
 let isReadOnlyMode = false;
 let readOnlyNoticeId = null;
 let readOnlyTypeFilter = null;
+let readOnlyAssigneeFilter = null;
 
 function getUrlParam(name){
   return new URLSearchParams(window.location.search).get(name);
@@ -1495,6 +1496,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
     isReadOnlyMode = true;
     readOnlyNoticeId = viewId;
     readOnlyTypeFilter = getUrlParam('type') || null;
+    readOnlyAssigneeFilter = getUrlParam('person') || null;
     document.body.classList.add('readonly-mode');
     document.getElementById('gateScreen').classList.add('hide');
     bootApp();
@@ -1828,13 +1830,14 @@ function openNcMenu(e, id){
     ? `<button onclick="setNoticeStatus('${id}','active')">${svgIcon('ico-folder',14)} 移回進行中</button>`
     : `<button onclick="setNoticeStatus('${id}','done')">${svgIcon('ico-check',14)} 標記為完成</button>`;
   menu.innerHTML = `
-    <button onclick="openShareTypeMenu('${id}')">${svgIcon('ico-link',14)} 複製分享連結</button>
+    <button onclick="openShareTypeMenu('${id}')">${svgIcon('ico-link',14)} 依工種分享連結</button>
+    <button onclick="openSharePersonMenu('${id}')">${svgIcon('ico-person',14)} 依人員分享連結</button>
     <button onclick="duplicateNotice('${id}')">${svgIcon('ico-copy',14)} 複製通告</button>
     ${statusBtn}
     <button class="danger" onclick="confirmDeleteNotice('${id}')">${svgIcon('ico-trash',14)} 刪除通告</button>
   `;
   const r = e.currentTarget.getBoundingClientRect();
-  const menuW = 200, menuH = 180;
+  const menuW = 200, menuH = 220;
   let top = r.bottom + 4;
   if(top + menuH > window.innerHeight) top = Math.max(8, r.top - menuH - 4);
   let left = r.right - menuW;
@@ -1885,6 +1888,47 @@ function copyShareLink(id, type){
   document.getElementById('ncMenu').classList.remove('nc-menu-scroll');
   const url = type ? `${SHARE_LINK_BASE}?view=${id}&type=${encodeURIComponent(type)}` : `${SHARE_LINK_BASE}?view=${id}`;
   const scopeText = type ? `僅顯示「${type}」工種的工作項目` : '顯示完整通告內容';
+  const done = ()=> alert('已複製唯讀分享連結：\n' + url + '\n\n' + scopeText + '。此連結免密碼即可開啟，僅供瀏覽，無法修改內容。');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done).catch(()=>{
+      prompt('請手動複製以下唯讀分享連結：', url);
+    });
+  }else{
+    prompt('請手動複製以下唯讀分享連結：', url);
+  }
+}
+function openSharePersonMenu(id){
+  const menu = document.getElementById('ncMenu');
+  const notice = noticesCache.find(n=>n.id===id);
+  const names = new Set();
+  (notice?.data||[]).forEach(s=>(s.assignees||[]).forEach(a=>names.add(a)));
+  const sortedNames = [...names].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+  if(!sortedNames.length){
+    menu.classList.remove('show');
+    alert('這份通告目前沒有指定任何人員，無法依人員分享。');
+    return;
+  }
+  const personButtons = sortedNames.map(name=>{
+    const color = assigneeColor(name);
+    return `<button onclick="copyShareLinkByPerson('${id}','${escAttr(name)}')">
+      <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+      ${escapeHtml(name)}
+    </button>`;
+  }).join('');
+  menu.innerHTML = `
+    <button onclick="copyShareLink('${id}','')" style="font-weight:700;border-bottom:1px solid var(--border)">
+      ${svgIcon('ico-link',14)} 完整通告（不篩選）
+    </button>
+    ${personButtons}
+  `;
+  menu.classList.add('nc-menu-scroll');
+  setTimeout(()=> menu.classList.add('show'), 0);
+}
+function copyShareLinkByPerson(id, name){
+  document.getElementById('ncMenu').classList.remove('show');
+  document.getElementById('ncMenu').classList.remove('nc-menu-scroll');
+  const url = `${SHARE_LINK_BASE}?view=${id}&person=${encodeURIComponent(name)}`;
+  const scopeText = `僅顯示「${name}」參與的工作項目`;
   const done = ()=> alert('已複製唯讀分享連結：\n' + url + '\n\n' + scopeText + '。此連結免密碼即可開啟，僅供瀏覽，無法修改內容。');
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(url).then(done).catch(()=>{
@@ -2008,6 +2052,10 @@ async function openNotice(id){
     document.getElementById('filterType').value = readOnlyTypeFilter;
     const badgeText = document.getElementById('readonlyBadgeText');
     if(badgeText) badgeText.textContent = `僅供檢視・${readOnlyTypeFilter}`;
+  }else if(isReadOnlyMode && readOnlyAssigneeFilter){
+    document.getElementById('filterType').value='';
+    const badgeText = document.getElementById('readonlyBadgeText');
+    if(badgeText) badgeText.textContent = `僅供檢視・${readOnlyAssigneeFilter}`;
   }else{
     document.getElementById('filterType').value='';
   }
@@ -2068,7 +2116,8 @@ function fmtDateRange(startStr, endStr){
 function render(){
   const fd=document.getElementById('filterDate').value;
   const ft=document.getElementById('filterType').value;
-  let filtered=data.filter(s=>(!fd||s.date===fd)&&(!ft||s.type===ft));
+  let filtered=data.filter(s=>(!fd||s.date===fd)&&(!ft||s.type===ft)&&
+    (!readOnlyAssigneeFilter || (s.assignees||[]).includes(readOnlyAssigneeFilter)));
   const groups={};
   filtered.forEach(s=>{(groups[s.date]=groups[s.date]||[]).push(s);});
   const main=document.getElementById('mainContent');
