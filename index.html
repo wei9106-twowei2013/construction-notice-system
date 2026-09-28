@@ -500,6 +500,17 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   color:var(--muted);cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
 .tl-icon-btn:hover:not(:disabled){color:var(--brand);border-color:var(--brand)}
 .tl-icon-btn:disabled{opacity:.3;cursor:default}
+.tl-count{font-size:.7rem;color:var(--muted);white-space:nowrap;flex-shrink:0;min-width:48px;text-align:right}
+.ft-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 12px;
+  padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:#fff}
+.ft-item{display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;border-radius:6px;user-select:none}
+.ft-item:hover{background:var(--bg)}
+.ft-name{font-size:.84rem;color:#333}
+.ft-item.on .ft-name{font-weight:700;color:var(--brand)}
+.ft-add{display:flex;gap:8px;margin-top:8px}
+.ft-add input{flex:1;min-width:0}
+.slot-tools{display:flex;align-items:flex-start;gap:6px;margin-top:9px;font-size:.78rem;color:var(--muted);line-height:1.5}
+.slot-tools svg{flex-shrink:0;margin-top:3px}
 .am-list{display:flex;flex-direction:column;gap:16px;max-height:420px;overflow-y:auto}
 .am-row{display:flex;flex-direction:column;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border)}
 .am-row:last-child{border-bottom:none;padding-bottom:0}
@@ -856,7 +867,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
             <svg class="icon" width="14" height="14"><use href="#ico-tag"/></svg> 工項管理
           </button>
           <button class="btn btn-ghost" onclick="openToolList()">
-            <svg class="icon" width="14" height="14"><use href="#ico-wrench"/></svg> 工具清單<span id="toolCountLabel" style="margin-left:4px;opacity:.75"></span>
+            <svg class="icon" width="14" height="14"><use href="#ico-wrench"/></svg> 工具清單
           </button>
           <button class="btn btn-ghost" onclick="window.print()">
             <svg class="icon" width="14" height="14"><use href="#ico-print"/></svg> 列印
@@ -1028,6 +1039,14 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
         <label>相關檔案連結（Google 雲端硬碟等）</label>
         <input type="url" id="f_filelink" placeholder="https://drive.google.com/...">
       </div>
+      <div class="field">
+        <label>施工工具（圈選這項工作需要的工具）</label>
+        <div id="f_tools" class="ft-list"></div>
+        <div class="ft-add">
+          <input type="text" id="f_tool_new" placeholder="新增工具項目" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();addToolFromForm();}">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addToolFromForm()">新增</button>
+        </div>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
@@ -1081,10 +1100,10 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   <div class="modal am-modal">
     <div class="modal-head">
       <svg class="icon" width="16" height="16"><use href="#ico-wrench"/></svg>
-      <span>施工工具整理</span>
+      <span>施工工具項目管理</span>
     </div>
     <div class="modal-body">
-      <p class="tm-hint">點左邊的圓圈可以標記已備妥的工具；名稱可以直接修改，也能調整順序、刪除，或在下方新增項目。</p>
+      <p class="tm-hint">這裡管理整份通告可選用的工具項目：名稱可以直接修改，也能調整順序、刪除或新增。要指定某項工作需要哪些工具，請在該工作的「編輯」裡圈選。</p>
       <div id="tlList"></div>
       <div class="tm-add-row">
         <input type="text" id="tl_newName" placeholder="新增工具項目" maxlength="30" onkeydown="if(event.key==='Enter'){addTool();}">
@@ -2090,7 +2109,6 @@ async function openNotice(id){
   mergeLegacyNameColors(notice.nameColorMap);
   headerCfg = Object.assign({}, HD_DEFAULTS, notice.headerCfg||{});
   toolList = normalizeToolList(notice.toolList);
-  updateToolCount();
   seedColors(data);
   ensureOrderFields();
 
@@ -2217,6 +2235,10 @@ function render(){
           onclick="editSlot(${s.id})" title="點擊編輯此工作">${escapeHtml(a)}</span>`;
       }).join('');
       const venueHTML=s.venue?`<span class="slot-venue">${escapeHtml(s.venue)}</span>`:'';
+      const toolNames = slotToolNames(s);
+      const toolsHTML = toolNames.length
+        ? `<div class="slot-tools">${svgIcon('ico-wrench',12)}<span>工具：${toolNames.map(n=>escapeHtml(n)).join('、')}</span></div>`
+        : '';
       const fileLinkHTML = s.fileLink
         ? `<a class="slot-filelink" href="${escapeHtml(s.fileLink)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${svgIcon('ico-link',12)} 查看相關檔案</a>`
         : '';
@@ -2244,6 +2266,7 @@ function render(){
           ${venueHTML}
         </div>
         <div class="slot-body">${s.desc}</div>
+        ${toolsHTML}
         <div class="slot-assignees">${pills}</div>
         ${fileLinkHTML}
         <div class="slot-actions">
@@ -2395,6 +2418,9 @@ function openModal(){
   document.getElementById('f_assignees').value='';
   document.getElementById('f_venue').value=headerCfg?.venue||'';
   document.getElementById('f_filelink').value='';
+  formToolIds = new Set();
+  document.getElementById('f_tool_new').value='';
+  renderFormTools();
   renderAssigneeColorPickers([]);
   document.getElementById('modalBg').classList.add('open');
 }
@@ -2413,6 +2439,9 @@ function editSlot(id){
   document.getElementById('f_assignees').value=(s.assignees||[]).join(', ');
   document.getElementById('f_venue').value=s.venue||'';
   document.getElementById('f_filelink').value=s.fileLink||'';
+  formToolIds = new Set(s.toolIds||[]);
+  document.getElementById('f_tool_new').value='';
+  renderFormTools();
   renderAssigneeColorPickers(s.assignees||[]);
   document.getElementById('modalBg').classList.add('open');
 }
@@ -2465,6 +2494,7 @@ function saveSlot(){
   const ar=document.getElementById('f_assignees').value;
   const venue=document.getElementById('f_venue').value.trim();
   const fileLink=document.getElementById('f_filelink').value.trim();
+  const toolIds=toolList.filter(t=>formToolIds.has(t.id)).map(t=>t.id);
   if(!date||!start||!desc){alert('請填寫日期、開始時間與工作內容');return;}
   if(endDate && endDate<date){alert('結束日期不能早於開始日期');return;}
   if(endDate===date) endDate=''; // same day -> not a multi-day span
@@ -2478,11 +2508,11 @@ function saveSlot(){
       const prev=data[i];
       const dateChanged = prev.date !== date;
       const order = dateChanged ? nextOrderForDate(date) : (prev.order??0);
-      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,fileLink,order,isNew:true};
+      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,fileLink,toolIds,order,isNew:true};
     }
   }else{
     const order = nextOrderForDate(date);
-    data.push({id:nextId,date,endDate,type,start,end,timeNote,desc,assignees,venue,fileLink,order,isNew:false});
+    data.push({id:nextId,date,endDate,type,start,end,timeNote,desc,assignees,venue,fileLink,toolIds,order,isNew:false});
     nextId++;
   }
   closeModal();render();scheduleSave();
@@ -2615,32 +2645,68 @@ function updateAssigneeColor(name,color,swatchEl){
 }
 function closeAM(){document.getElementById('amBg').classList.remove('open');}
 
-/* ── 施工工具整理（每份通告各自一份清單，存在通告文件的 toolList 欄位） ── */
+/* ── 施工工具整理 ──
+   toolList：這份通告可以選的工具項目（可改名、排序、新增、刪除），存在通告文件的 toolList 欄位。
+   每筆工作項目用 toolIds 記錄「這項工作需要哪些工具」，在「編輯工作安排」表單裡圈選。 */
 const DEFAULT_TOOL_NAMES = [
   '電鑽','螺絲釘','清潔工具','大釘槍','小釘槍','空壓機釘槍','大吸塵器','小吸塵器',
   '垃圾袋','矽力康膠及槍','泡棉膠','布膠','除膠劑','去漬油','文保類工具','多媒體類工具',
   '延長線','其他'
 ];
 let toolList = [];
+let formToolIds = new Set(); // 編輯表單目前圈選的工具 id
 function genToolId(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
-function makeToolItem(name, checked){
-  // 欄位一律給明確的字串／布林值，避免 Firestore 因 undefined 拒絕整份儲存
-  return { id: genToolId(), name: String(name||'').trim(), checked: !!checked };
+function makeToolItem(name){
+  // 欄位一律給明確的字串，避免 Firestore 因 undefined 拒絕整份儲存
+  return { id: genToolId(), name: String(name||'').trim() };
 }
-function defaultToolList(){ return DEFAULT_TOOL_NAMES.map(n=>makeToolItem(n,false)); }
+function defaultToolList(){ return DEFAULT_TOOL_NAMES.map(n=>makeToolItem(n)); }
 function normalizeToolList(raw){
   if(!Array.isArray(raw)) return defaultToolList();
   return raw
     .filter(t=>t && typeof t.name==='string')
-    .map(t=>({ id: (typeof t.id==='string' && t.id) ? t.id : genToolId(), name: t.name, checked: !!t.checked }));
+    .map(t=>({ id: (typeof t.id==='string' && t.id) ? t.id : genToolId(), name: t.name }));
 }
 function escapeAttrHtml(s){ return escapeHtml(s).replace(/"/g,'&quot;'); }
-function updateToolCount(){
-  const el = document.getElementById('toolCountLabel');
-  if(!el) return;
-  const done = toolList.filter(t=>t.checked).length;
-  el.textContent = toolList.length ? `${done}/${toolList.length}` : '';
+// 某筆工作需要的工具名稱（依工具清單順序；已被刪除的工具會自動略過）
+function slotToolNames(s){
+  const ids = new Set(s.toolIds||[]);
+  return toolList.filter(t=>ids.has(t.id)).map(t=>t.name);
 }
+
+/* 編輯工作表單裡的工具圈選區 */
+function renderFormTools(){
+  const box = document.getElementById('f_tools');
+  if(!box) return;
+  if(!toolList.length){
+    box.innerHTML = '<p class="tm-hint" style="margin:0">目前沒有工具項目，可以在下方新增。</p>';
+    return;
+  }
+  box.innerHTML = toolList.map(t=>{
+    const on = formToolIds.has(t.id);
+    return `<div class="ft-item${on?' on':''}" onclick="toggleFormTool('${t.id}')">
+      <span class="tl-check${on?' on':''}"></span><span class="ft-name">${escapeHtml(t.name)}</span>
+    </div>`;
+  }).join('');
+}
+function toggleFormTool(id){
+  if(formToolIds.has(id)) formToolIds.delete(id); else formToolIds.add(id);
+  renderFormTools();
+}
+function addToolFromForm(){
+  const input = document.getElementById('f_tool_new');
+  const name = input.value.trim();
+  if(!name) return;
+  const item = makeToolItem(name);
+  toolList.push(item);
+  formToolIds.add(item.id); // 新增後直接圈選這項工作要用
+  input.value = '';
+  renderFormTools();
+  scheduleSave();
+  input.focus();
+}
+
+/* 工具項目管理（工具列的「工具清單」按鈕）：改名、調整順序、新增、刪除 */
 function openToolList(){
   if(isReadOnlyMode) return;
   renderToolList();
@@ -2651,23 +2717,20 @@ function renderToolList(){
   const box = document.getElementById('tlList');
   if(!toolList.length){
     box.innerHTML = '<p class="tm-hint" style="margin:0">目前沒有工具項目，可以在下方新增。</p>';
-  }else{
-    box.innerHTML = toolList.map((t,i)=>`<div class="tl-row${t.checked?' done':''}">
-      <button class="tl-check${t.checked?' on':''}" onclick="toggleTool('${t.id}')" title="${t.checked?'取消標記':'標記為已備妥'}"></button>
+    return;
+  }
+  box.innerHTML = toolList.map((t,i)=>{
+    const used = data.filter(s=>(s.toolIds||[]).includes(t.id)).length;
+    return `<div class="tl-row">
       <input class="tl-name" type="text" value="${escapeAttrHtml(t.name)}" maxlength="30" onchange="renameTool('${t.id}',this.value)">
+      <span class="tl-count">${used?`${used} 項工作`:''}</span>
       <button class="tl-icon-btn" onclick="moveTool('${t.id}',-1)" title="上移" ${i===0?'disabled':''}>${svgIcon('ico-up',12)}</button>
       <button class="tl-icon-btn" onclick="moveTool('${t.id}',1)" title="下移" ${i===toolList.length-1?'disabled':''}>${svgIcon('ico-down',12)}</button>
       <button class="tl-icon-btn" onclick="deleteTool('${t.id}')" title="刪除">${svgIcon('ico-trash',12)}</button>
-    </div>`).join('');
-  }
-  updateToolCount();
+    </div>`;
+  }).join('');
 }
-function toolChanged(){ renderToolList(); scheduleSave(); }
-function toggleTool(id){
-  const t = toolList.find(x=>x.id===id); if(!t) return;
-  t.checked = !t.checked;
-  toolChanged();
-}
+function toolChanged(){ renderToolList(); renderFormTools(); render(); scheduleSave(); }
 function renameTool(id, value){
   const t = toolList.find(x=>x.id===id); if(!t) return;
   const name = (value||'').trim();
@@ -2684,15 +2747,19 @@ function moveTool(id, dir){
 }
 function deleteTool(id){
   const t = toolList.find(x=>x.id===id); if(!t) return;
-  if(!confirm(`確定要刪除「${t.name}」嗎？`)) return;
+  const used = data.filter(s=>(s.toolIds||[]).includes(id)).length;
+  const extra = used ? `\n\n目前有 ${used} 項工作有選用這個工具，刪除後會從那些工作中一併移除。` : '';
+  if(!confirm(`確定要刪除「${t.name}」嗎？${extra}`)) return;
   toolList = toolList.filter(x=>x.id!==id);
+  data.forEach(s=>{ if((s.toolIds||[]).includes(id)) s.toolIds = s.toolIds.filter(x=>x!==id); });
+  formToolIds.delete(id);
   toolChanged();
 }
 function addTool(){
   const input = document.getElementById('tl_newName');
   const name = input.value.trim();
   if(!name) return;
-  toolList.push(makeToolItem(name,false));
+  toolList.push(makeToolItem(name));
   input.value = '';
   toolChanged();
   input.focus();
