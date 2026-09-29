@@ -442,7 +442,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .modal-head{background:linear-gradient(135deg,var(--brand-dark),var(--brand));
   color:#fff;padding:16px 22px;font-size:1rem;font-weight:700;
   display:flex;align-items:center;gap:8px;flex-shrink:0}
-.modal-body{padding:20px 22px;overflow-y:auto;flex:1}
+.modal-body{padding:20px 22px;overflow-y:auto;overflow-x:hidden;flex:1}
 .field{margin-bottom:15px}
 .field label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);
   letter-spacing:.07em;margin-bottom:5px}
@@ -501,14 +501,15 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .tl-icon-btn:hover:not(:disabled){color:var(--brand);border-color:var(--brand)}
 .tl-icon-btn:disabled{opacity:.3;cursor:default}
 .tl-count{font-size:.7rem;color:var(--muted);white-space:nowrap;flex-shrink:0;min-width:48px;text-align:right}
-.ft-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 12px;
-  padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:#fff}
-.ft-item{display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;border-radius:6px;user-select:none}
+.ft-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(150px,100%),1fr));gap:2px 12px;
+  padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:#fff;box-sizing:border-box;max-width:100%}
+.ft-item{display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;border-radius:6px;user-select:none;min-width:0}
 .ft-item:hover{background:var(--bg)}
-.ft-name{font-size:.84rem;color:#333}
+.ft-name{font-size:.84rem;color:#333;min-width:0;overflow-wrap:anywhere}
 .ft-item.on .ft-name{font-weight:700;color:var(--brand)}
-.ft-add{display:flex;gap:8px;margin-top:8px}
-.ft-add input{flex:1;min-width:0}
+.ft-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.ft-add input{flex:1 1 140px;min-width:0}
+.ft-add button{flex:0 0 auto}
 .slot-tools{display:flex;align-items:flex-start;gap:6px;margin-top:9px;font-size:.78rem;color:var(--muted);line-height:1.5}
 .slot-tools svg{flex-shrink:0;margin-top:3px}
 .am-list{display:flex;flex-direction:column;gap:16px;max-height:420px;overflow-y:auto}
