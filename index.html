@@ -1080,10 +1080,10 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
       <span>工項管理</span>
     </div>
     <div class="modal-body">
-      <p class="tm-hint">內建工項無法刪除。下方列出的是自訂工項，可以刪除；新增的工項會套用到所有通告。</p>
-      <div class="am-list" id="tmList"></div>
+      <p class="tm-hint">所有工項都可以改名、改色、調整順序或刪除，變更會套用到所有通告。</p>
+      <div id="tmList"></div>
       <div class="tm-add-row">
-        <input type="text" id="tm_newName" placeholder="新增自訂工項名稱" maxlength="20">
+        <input type="text" id="tm_newName" placeholder="新增工項名稱" maxlength="20">
         <span class="am-swatch am-swatch-sm am-swatch-custom" title="選擇顏色">
           <input type="color" id="tm_newColor" value="#7C9473">
         </span>
@@ -1303,45 +1303,44 @@ function checkAuth(){
 /* ══════════════════════════════════════
    TYPE CONFIG
 ══════════════════════════════════════ */
-const BASE_TYPE_CFG = {
-  '水電':  { color:'#1AADCE', ico:'ico-bolt'   },
-  '圖威':  { color:'#E07B2A', ico:'ico-img2'   },
-  '文保':  { color:'#EC9A9A', ico:'ico-shield' },
-  '木工':  { color:'#7B5E3A', ico:'ico-hammer' },
-  '油漆':  { color:'#8E24AA', ico:'ico-paint'  },
-  '大圖輸出':{ color:'#0277BD', ico:'ico-print2' },
-  '貼圖':  { color:'#00897B', ico:'ico-sticker'},
-  '美術':  { color:'#F4511E', ico:'ico-palette'},
-  '多媒體':{ color:'#3949AB', ico:'ico-media'  },
-  '清潔':  { color:'#558B2F', ico:'ico-clean'  },
-  '燈光':  { color:'#F9A825', ico:'ico-light'  },
-  '文宣品':{ color:'#D81B60', ico:'ico-flyer'  },
-  '攝影':  { color:'#C62828', ico:'ico-camera' },
-  '腳本企劃':{ color:'#9E9D24', ico:'ico-script' },
-  '展示設計':{ color:'#6A4C93', ico:'ico-layout' },
-  '其他':  { color:'#4A7C6F', ico:'ico-wrench' },
-};
-/* 使用者自訂工項（可透過「工項管理」新增/刪除）。第一次啟用時的預設值，
-   之後改由 Firestore 全域設定接管，這裡僅作為尚無雲端資料時的種子。 */
-const DEFAULT_CUSTOM_TYPES = {
-  '玻璃+封膠': { color:'#75B5D1' },
-  '壓克力製品': { color:'#C69C39' },
-  '環景攝影': { color:'#438983' },
-};
-let customTypes = {}; // name -> {color}; populated from global app config at boot
-const CUSTOM_TYPE_ICO = 'ico-tag';
+/* 全部工項都可以改名／改色／排序／刪除。id 是內部穩定編號（改名不會跟著變，
+   用來保留原本設計好的圖示），name 才是實際存進每筆工作資料（s.type）裡的
+   查找鍵。第一次啟用、雲端還沒有資料時，用這份當種子。 */
+function defaultAllTypes(){
+  return [
+    {id:'water',       name:'水電',     color:'#1AADCE', ico:'ico-bolt'   },
+    {id:'tuwei',       name:'圖威',     color:'#E07B2A', ico:'ico-img2'   },
+    {id:'conserve',    name:'文保',     color:'#EC9A9A', ico:'ico-shield' },
+    {id:'carpentry',   name:'木工',     color:'#7B5E3A', ico:'ico-hammer' },
+    {id:'paint',       name:'油漆',     color:'#8E24AA', ico:'ico-paint'  },
+    {id:'bigprint',    name:'大圖輸出', color:'#0277BD', ico:'ico-print2' },
+    {id:'sticker',     name:'貼圖',     color:'#00897B', ico:'ico-sticker'},
+    {id:'art',         name:'美術',     color:'#F4511E', ico:'ico-palette'},
+    {id:'media',       name:'多媒體',   color:'#3949AB', ico:'ico-media'  },
+    {id:'clean',       name:'清潔',     color:'#558B2F', ico:'ico-clean'  },
+    {id:'light',       name:'燈光',     color:'#F9A825', ico:'ico-light'  },
+    {id:'flyer',       name:'文宣品',   color:'#D81B60', ico:'ico-flyer'  },
+    {id:'photo',       name:'攝影',     color:'#C62828', ico:'ico-camera' },
+    {id:'script',      name:'腳本企劃', color:'#9E9D24', ico:'ico-script' },
+    {id:'layout',      name:'展示設計', color:'#6A4C93', ico:'ico-layout' },
+    {id:'glass',       name:'玻璃+封膠', color:'#75B5D1', ico:'ico-tag'   },
+    {id:'acrylic',     name:'壓克力製品', color:'#C69C39', ico:'ico-tag'  },
+    {id:'panorama',    name:'環景攝影', color:'#438983', ico:'ico-tag'   },
+    {id:'other',       name:'其他',     color:'#4A7C6F', ico:'ico-wrench'},
+  ];
+}
+// 沒有任何工項符合時的內部保底樣式（跟清單本身無關，用不到、也不會顯示在工項管理裡）
+const FALLBACK_TYPE_CFG = { color:'#8A8A8A', ico:'ico-wrench' };
 
+let allTypes = []; // [{id,name,color,ico}], 由 loadAppConfig() 從全域設定載入
+function genTypeId(){ return 'ty' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function typeCfg(name){
-  if(customTypes[name]) return { ico:CUSTOM_TYPE_ICO, ...customTypes[name] };
-  return BASE_TYPE_CFG[name] || BASE_TYPE_CFG['其他'];
+  const t = allTypes.find(x=>x.name===name);
+  return t ? { color:t.color, ico:t.ico } : FALLBACK_TYPE_CFG;
 }
-function isCustomType(name){ return !!customTypes[name]; }
-/* 所有工項名稱（含自訂），順序固定：內建工項在前，自訂工項居中，「其他」永遠最後 */
-function mergedTypeNames(){
-  const baseKeys = Object.keys(BASE_TYPE_CFG).filter(k=>k!=='其他');
-  return [...baseKeys, ...Object.keys(customTypes), '其他'];
-}
-/* 下拉選單等處顯示用的工項名稱（不再加註記號，內建與自訂工項顯示方式一致） */
+/* 所有工項名稱，依照工項管理目前排列的順序 */
+function mergedTypeNames(){ return allTypes.map(t=>t.name); }
+/* 下拉選單等處顯示用的工項名稱 */
 function typeDisplayLabel(name){ return name; }
 /* 重新產生「篩選工種」與「新增/編輯工作」的工種下拉選單（含自訂工項） */
 function renderTypeSelectOptions(){
@@ -1521,27 +1520,42 @@ function getUrlParam(name){
 }
 
 async function loadAppConfig(){
+  let needsSave = false;
   try{
     const cfg = await fsGetAppConfig();
-    if(cfg){
-      customTypes = cfg.customTypes || {};
+    if(cfg && Array.isArray(cfg.allTypes) && cfg.allTypes.length){
+      allTypes = cfg.allTypes;
       nameColorMap = cfg.nameColorMap || {};
       paletteIdx = cfg.paletteIdx || 0;
+    }else if(cfg && cfg.customTypes){
+      // 舊版格式（16 個內建工項寫死在程式碼裡 + customTypes 自訂工項）第一次
+      // 遇到就轉成新的、全部工項都能編輯的單一清單，並把使用者原本自訂的
+      // 工項顏色一併保留過來。
+      const base = defaultAllTypes();
+      const customNames = Object.keys(cfg.customTypes);
+      allTypes = base.map(t=>t); // 內建 16 項照舊
+      customNames.forEach(name=>{
+        const c = cfg.customTypes[name];
+        allTypes.splice(allTypes.length-1, 0, { id:genTypeId(), name, color:(c&&c.color)||'#888888', ico:'ico-tag' });
+      });
+      nameColorMap = cfg.nameColorMap || {};
+      paletteIdx = cfg.paletteIdx || 0;
+      needsSave = true;
     }else{
-      // first run on this Firebase project: seed the default custom types
-      customTypes = { ...DEFAULT_CUSTOM_TYPES };
+      allTypes = defaultAllTypes();
       nameColorMap = {};
       paletteIdx = 0;
-      fsSaveAppConfig({ customTypes, nameColorMap, paletteIdx }).catch(e=>console.error(e));
+      needsSave = true;
     }
   }catch(e){ console.error(e); }
+  if(needsSave) fsSaveAppConfig({ allTypes, nameColorMap, paletteIdx }).catch(e=>console.error(e));
   renderTypeSelectOptions();
 }
 let appConfigSaveTimer = null;
 function scheduleAppConfigSave(){
   if(appConfigSaveTimer) clearTimeout(appConfigSaveTimer);
   appConfigSaveTimer = setTimeout(()=>{
-    fsSaveAppConfig({ customTypes, nameColorMap, paletteIdx }).catch(e=>console.error(e));
+    fsSaveAppConfig({ allTypes, nameColorMap, paletteIdx }).catch(e=>console.error(e));
   }, 600);
 }
 
@@ -2766,7 +2780,7 @@ function addTool(){
   input.focus();
 }
 
-/* ── Type Manager (自訂工項的新增／刪除) ── */
+/* ── Type Manager：全部工項（原本內建的也算在內）都可以改名／改色／排序／刪除 ── */
 function openTypeManager(){
   if(isReadOnlyMode) return;
   renderTypeManagerList();
@@ -2775,20 +2789,69 @@ function openTypeManager(){
 function closeTM(){ document.getElementById('tmBg').classList.remove('open'); }
 function renderTypeManagerList(){
   const list=document.getElementById('tmList');
-  const customNames=Object.keys(customTypes);
-  if(!customNames.length){
-    list.innerHTML='<p class="tm-hint" style="margin:0">目前沒有自訂工項，可以在下方新增。</p>';
+  if(!allTypes.length){
+    list.innerHTML='<p class="tm-hint" style="margin:0">目前沒有任何工項，可以在下方新增。</p>';
     return;
   }
-  list.innerHTML = customNames.map(name=>{
-    const cfg = typeCfg(name);
-    return `<div class="am-row tm-row">
-      <span class="am-pill-prev" style="background:${cfg.color};color:${pillTextColor(cfg.color)}">${escapeHtml(name)}</span>
-      <button class="btn btn-sm btn-delete-themed" onclick="deleteCustomType('${escAttr(name)}')">
-        ${svgIcon('ico-trash',12)} 刪除
-      </button>
+  list.innerHTML = allTypes.map((t,i)=>{
+    const used = data.filter(s=>s.type===t.name).length;
+    return `<div class="tl-row">
+      <span class="am-swatch am-swatch-sm am-swatch-custom" title="改變顏色" style="background:${t.color}">
+        <input type="color" value="${t.color}" oninput="changeTypeColor('${t.id}',this.value)">
+      </span>
+      <input class="tl-name" type="text" value="${escapeAttrHtml(t.name)}" maxlength="20" onchange="renameType('${t.id}',this.value)">
+      <span class="tl-count">${used?`${used} 項工作`:''}</span>
+      <button class="tl-icon-btn" onclick="moveType('${t.id}',-1)" title="上移" ${i===0?'disabled':''}>${svgIcon('ico-up',12)}</button>
+      <button class="tl-icon-btn" onclick="moveType('${t.id}',1)" title="下移" ${i===allTypes.length-1?'disabled':''}>${svgIcon('ico-down',12)}</button>
+      <button class="tl-icon-btn" onclick="deleteType('${t.id}')" title="刪除">${svgIcon('ico-trash',12)}</button>
     </div>`;
   }).join('');
+}
+function typeManagerChanged(){
+  scheduleAppConfigSave();
+  renderTypeManagerList();
+  renderTypeSelectOptions();
+  render();
+}
+function changeTypeColor(id, color){
+  const t = allTypes.find(x=>x.id===id); if(!t) return;
+  t.color = color;
+  typeManagerChanged();
+}
+function renameType(id, value){
+  const t = allTypes.find(x=>x.id===id); if(!t) return;
+  const newName = (value||'').trim();
+  if(!newName){ renderTypeManagerList(); return; } // 不允許清空名稱，還原成原本的
+  if(allTypes.some(x=>x.id!==id && x.name===newName)){
+    alert('已經有相同名稱的工項了');
+    renderTypeManagerList();
+    return;
+  }
+  const oldName = t.name;
+  if(oldName===newName) return;
+  t.name = newName;
+  // 這份「目前開啟中」的通告，把用到舊名稱的工作項目一起改成新名稱；
+  // 其他還沒打開過的通告，舊名稱的工作項目會先顯示成預設灰色，等改名稱或
+  // 打開那份通告時再處理（工項是全站共用設定，沒辦法一次改到所有通告）
+  let changedHere = false;
+  data.forEach(s=>{ if(s.type===oldName){ s.type=newName; changedHere=true; } });
+  typeManagerChanged();
+  if(changedHere) scheduleSave();
+}
+function moveType(id, dir){
+  const i = allTypes.findIndex(x=>x.id===id);
+  const j = i + dir;
+  if(i<0 || j<0 || j>=allTypes.length) return;
+  [allTypes[i], allTypes[j]] = [allTypes[j], allTypes[i]];
+  typeManagerChanged();
+}
+function deleteType(id){
+  const t = allTypes.find(x=>x.id===id); if(!t) return;
+  const used = data.filter(s=>s.type===t.name).length;
+  const extra = used ? `\n\n目前這份通告有 ${used} 項工作使用這個工項，刪除後那些項目會顯示成預設灰色，不會被刪除。` : '';
+  if(!confirm(`確定要刪除工項「${t.name}」嗎？${extra}`)) return;
+  allTypes = allTypes.filter(x=>x.id!==id);
+  typeManagerChanged();
 }
 function addCustomType(){
   const nameInput = document.getElementById('tm_newName');
@@ -2796,20 +2859,9 @@ function addCustomType(){
   const name = nameInput.value.trim();
   if(!name){ alert('請輸入工項名稱'); return; }
   if(mergedTypeNames().includes(name)){ alert('這個工項名稱已經存在了'); return; }
-  customTypes[name] = { color: colorInput.value };
-  scheduleAppConfigSave();
+  allTypes.push({ id:genTypeId(), name, color:colorInput.value, ico:'ico-tag' });
   nameInput.value='';
-  renderTypeManagerList();
-  renderTypeSelectOptions();
-  render();
-}
-function deleteCustomType(name){
-  if(!confirm(`確定要刪除工項「${name}」嗎？已經使用這個工項的工作項目不會被刪除，但會顯示為未分類的顏色。`)) return;
-  delete customTypes[name];
-  scheduleAppConfigSave();
-  renderTypeManagerList();
-  renderTypeSelectOptions();
-  render();
+  typeManagerChanged();
 }
 
 
