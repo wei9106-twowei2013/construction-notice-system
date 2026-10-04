@@ -2291,6 +2291,10 @@ function render(){
             style="color:var(--brand);border-color:var(--border)">
             ${svgIcon('ico-edit',12)} 編輯
           </button>
+          <button class="btn btn-ghost btn-sm" onclick="duplicateSlot(${s.id})" title="複製這筆工作，修改後另存成新的一筆"
+            style="color:var(--brand);border-color:var(--border)">
+            ${svgIcon('ico-copy',12)} 複製
+          </button>
           <button class="btn btn-sm btn-delete-themed" onclick="deleteSlot(${s.id})">
             ${svgIcon('ico-trash',12)} 刪除
           </button>
@@ -2446,6 +2450,29 @@ function editSlot(id){
   const s=data.find(x=>x.id===id);if(!s)return;
   editingId=id;
   document.getElementById('modalTitle').textContent='編輯工作安排';
+  document.getElementById('f_date').value=s.date;
+  document.getElementById('f_endDate').value=s.endDate||'';
+  document.getElementById('f_type').value=s.type;
+  document.getElementById('f_start').value=s.start;
+  document.getElementById('f_end').value=s.end||'';
+  document.getElementById('f_timenote').value=s.timeNote||'';
+  document.getElementById('f_desc').innerHTML=s.desc;
+  document.getElementById('f_assignees').value=(s.assignees||[]).join(', ');
+  document.getElementById('f_venue').value=s.venue||'';
+  document.getElementById('f_filelink').value=s.fileLink||'';
+  formToolIds = new Set(s.toolIds||[]);
+  document.getElementById('f_tool_new').value='';
+  renderFormTools();
+  renderAssigneeColorPickers(s.assignees||[]);
+  document.getElementById('modalBg').classList.add('open');
+}
+/* 複製單一工作：用這筆的內容預先填好「新增」表單，按「儲存」才會真的多出一筆，
+   按「取消」就什麼都不會留下。 */
+function duplicateSlot(id){
+  if(isReadOnlyMode) return;
+  const s=data.find(x=>x.id===id);if(!s)return;
+  editingId=null;
+  document.getElementById('modalTitle').textContent='複製工作安排（儲存後會新增一筆）';
   document.getElementById('f_date').value=s.date;
   document.getElementById('f_endDate').value=s.endDate||'';
   document.getElementById('f_type').value=s.type;
