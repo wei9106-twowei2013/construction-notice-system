@@ -1044,7 +1044,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
         <input type="url" id="f_filelink" placeholder="https://drive.google.com/...">
       </div>
       <div class="field">
-        <label>成本資料連結（僅編輯者可見，分享連結不會顯示）</label>
+        <label>成本資料連結（僅編輯者可見；新增工作時會自動帶入上次用的連結，可自行修改）</label>
         <input type="url" id="f_costlink" placeholder="https://docs.google.com/spreadsheets/...">
       </div>
       <div class="field">
@@ -1530,6 +1530,7 @@ async function loadAppConfig(){
   let needsSave = false;
   try{
     const cfg = await fsGetAppConfig();
+    lastCostLink = (cfg && typeof cfg.lastCostLink==='string') ? cfg.lastCostLink : '';
     if(cfg && Array.isArray(cfg.allTypes) && cfg.allTypes.length){
       allTypes = cfg.allTypes;
       nameColorMap = cfg.nameColorMap || {};
@@ -1555,14 +1556,14 @@ async function loadAppConfig(){
       needsSave = true;
     }
   }catch(e){ console.error(e); }
-  if(needsSave) fsSaveAppConfig({ allTypes, nameColorMap, paletteIdx }).catch(e=>console.error(e));
+  if(needsSave) fsSaveAppConfig({ allTypes, nameColorMap, paletteIdx, lastCostLink }).catch(e=>console.error(e));
   renderTypeSelectOptions();
 }
 let appConfigSaveTimer = null;
 function scheduleAppConfigSave(){
   if(appConfigSaveTimer) clearTimeout(appConfigSaveTimer);
   appConfigSaveTimer = setTimeout(()=>{
-    fsSaveAppConfig({ allTypes, nameColorMap, paletteIdx }).catch(e=>console.error(e));
+    fsSaveAppConfig({ allTypes, nameColorMap, paletteIdx, lastCostLink }).catch(e=>console.error(e));
   }, 600);
 }
 
@@ -2050,6 +2051,7 @@ async function duplicateNotice(id){
       nameColorMap: src.nameColorMap||{},
       paletteIdx: src.paletteIdx||0,
       toolList: normalizeToolList(src.toolList),
+      costLinkDefault: (typeof src.costLinkDefault==='string') ? src.costLinkDefault : '',
       noticeOrder: nextNoticeOrder(),
       createdAt: FB.serverTimestamp(),
     });
@@ -2131,6 +2133,7 @@ async function openNotice(id){
   mergeLegacyNameColors(notice.nameColorMap);
   headerCfg = Object.assign({}, HD_DEFAULTS, notice.headerCfg||{});
   toolList = normalizeToolList(notice.toolList);
+  noticeCostLink = (typeof notice.costLinkDefault==='string') ? notice.costLinkDefault : '';
   seedColors(data);
   ensureOrderFields();
 
@@ -2168,7 +2171,7 @@ async function doSaveNotice(){
   if(!currentNoticeId) return;
   try{
     await fsSaveNotice(currentNoticeId, {
-      headerCfg, data, nextId, nameColorMap, paletteIdx, toolList,
+      headerCfg, data, nextId, nameColorMap, paletteIdx, toolList, costLinkDefault: noticeCostLink,
     });
     setSaveStatus('saved');
   }catch(e){
@@ -2447,7 +2450,7 @@ function openModal(){
   document.getElementById('f_assignees').value='';
   document.getElementById('f_venue').value=headerCfg?.venue||'';
   document.getElementById('f_filelink').value='';
-  document.getElementById('f_costlink').value='';
+  document.getElementById('f_costlink').value=noticeCostLink||lastCostLink||'';
   formToolIds = new Set();
   document.getElementById('f_tool_new').value='';
   renderFormTools();
@@ -2558,6 +2561,7 @@ function saveSlot(){
   if(costLink && !/^https?:\/\//i.test(costLink)){alert('成本資料連結請填寫完整網址（需以 http:// 或 https:// 開頭）');return;}
   const assignees=ar.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
   assignees.forEach(a=>assigneeColor(a));
+  if(costLink){ noticeCostLink=costLink; lastCostLink=costLink; scheduleAppConfigSave(); }
 
   if(editingId!==null){
     const i=data.findIndex(x=>x.id===editingId);
@@ -2711,6 +2715,8 @@ const DEFAULT_TOOL_NAMES = [
   '延長線','其他'
 ];
 let toolList = [];
+let lastCostLink = '';    // 全站最近一次存下的成本資料連結（存在全域設定）
+let noticeCostLink = '';  // 這份通告最近一次存下的成本資料連結（存在通告文件）
 let formToolIds = new Set(); // 編輯表單目前圈選的工具 id
 function genToolId(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function makeToolItem(name){
