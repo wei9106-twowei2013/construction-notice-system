@@ -2479,6 +2479,18 @@ function editSlot(id){
   renderAssigneeColorPickers(s.assignees||[]);
   document.getElementById('modalBg').classList.add('open');
 }
+/* 存下一筆有成本資料連結的工作後，若這份通告還有其他工作沒填成本連結，詢問是否一起套用。
+   只補空白的、不覆蓋已有的；補上的不算「異動」，不會加上星號。 */
+function offerFillCostLink(link){
+  if(isReadOnlyMode || !link) return;
+  const blanks = data.filter(x=>!x.costLink);
+  if(!blanks.length) return;
+  if(!confirm(`這份通告還有 ${blanks.length} 項工作沒有填成本資料連結，要一起套用這個連結嗎？\n\n只會補上空白的，已經有連結的不會被改動，之後每一筆仍然可以單獨修改。`)) return;
+  blanks.forEach(x=>{ x.costLink = link; });
+  render();
+  scheduleSave();
+}
+
 /* 複製單一工作：用這筆的內容預先填好「新增」表單，按「儲存」才會真的多出一筆，
    按「取消」就什麼都不會留下。 */
 function duplicateSlot(id){
@@ -2577,6 +2589,7 @@ function saveSlot(){
     nextId++;
   }
   closeModal();render();scheduleSave();
+  if(costLink) setTimeout(()=>offerFillCostLink(costLink),60);
 }
 function nextOrderForDate(date){
   const siblings = data.filter(x=>x.date===date);
