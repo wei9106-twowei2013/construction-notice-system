@@ -411,6 +411,7 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .slot-filelink{display:inline-flex;align-items:center;gap:5px;margin-top:9px;
   font-size:.78rem;font-weight:600;color:var(--brand);text-decoration:none}
 .slot-filelink:hover{text-decoration:underline}
+.slot-filelink + .slot-filelink{margin-left:14px}
 .slot-body{font-size:.88rem;color:#2a1a20;line-height:1.7}
 
 /* ── Assignee pills ── */
@@ -1041,6 +1042,10 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
       <div class="field">
         <label>相關檔案連結（Google 雲端硬碟等）</label>
         <input type="url" id="f_filelink" placeholder="https://drive.google.com/...">
+      </div>
+      <div class="field">
+        <label>成本資料連結（僅編輯者可見，分享連結不會顯示）</label>
+        <input type="url" id="f_costlink" placeholder="https://docs.google.com/spreadsheets/...">
       </div>
       <div class="field">
         <label>施工工具（圈選這項工作需要的工具）</label>
@@ -2256,6 +2261,9 @@ function render(){
       const toolsHTML = toolNames.length
         ? `<div class="slot-tools">${svgIcon('ico-wrench',12)}<span>工具：${toolNames.map(n=>escapeHtml(n)).join('、')}</span></div>`
         : '';
+      const costLinkHTML = (!isReadOnlyMode && s.costLink)
+        ? `<a class="slot-filelink slot-costlink" href="${escapeHtml(s.costLink)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${svgIcon('ico-link',12)} 成本資料</a>`
+        : '';
       const fileLinkHTML = s.fileLink
         ? `<a class="slot-filelink" href="${escapeHtml(s.fileLink)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${svgIcon('ico-link',12)} 查看相關檔案</a>`
         : '';
@@ -2285,7 +2293,7 @@ function render(){
         <div class="slot-body">${s.desc}</div>
         ${toolsHTML}
         <div class="slot-assignees">${pills}</div>
-        ${fileLinkHTML}
+        ${fileLinkHTML}${costLinkHTML}
         <div class="slot-actions">
           <button class="btn btn-ghost btn-sm" onclick="editSlot(${s.id})"
             style="color:var(--brand);border-color:var(--border)">
@@ -2439,6 +2447,7 @@ function openModal(){
   document.getElementById('f_assignees').value='';
   document.getElementById('f_venue').value=headerCfg?.venue||'';
   document.getElementById('f_filelink').value='';
+  document.getElementById('f_costlink').value='';
   formToolIds = new Set();
   document.getElementById('f_tool_new').value='';
   renderFormTools();
@@ -2460,6 +2469,7 @@ function editSlot(id){
   document.getElementById('f_assignees').value=(s.assignees||[]).join(', ');
   document.getElementById('f_venue').value=s.venue||'';
   document.getElementById('f_filelink').value=s.fileLink||'';
+  document.getElementById('f_costlink').value=s.costLink||'';
   formToolIds = new Set(s.toolIds||[]);
   document.getElementById('f_tool_new').value='';
   renderFormTools();
@@ -2483,6 +2493,7 @@ function duplicateSlot(id){
   document.getElementById('f_assignees').value=(s.assignees||[]).join(', ');
   document.getElementById('f_venue').value=s.venue||'';
   document.getElementById('f_filelink').value=s.fileLink||'';
+  document.getElementById('f_costlink').value=s.costLink||'';
   formToolIds = new Set(s.toolIds||[]);
   document.getElementById('f_tool_new').value='';
   renderFormTools();
@@ -2538,11 +2549,13 @@ function saveSlot(){
   const ar=document.getElementById('f_assignees').value;
   const venue=document.getElementById('f_venue').value.trim();
   const fileLink=document.getElementById('f_filelink').value.trim();
+  const costLink=document.getElementById('f_costlink').value.trim();
   const toolIds=toolList.filter(t=>formToolIds.has(t.id)).map(t=>t.id);
   if(!date||!start||!desc){alert('請填寫日期、開始時間與工作內容');return;}
   if(endDate && endDate<date){alert('結束日期不能早於開始日期');return;}
   if(endDate===date) endDate=''; // same day -> not a multi-day span
   if(fileLink && !/^https?:\/\//i.test(fileLink)){alert('相關檔案連結請填寫完整網址（需以 http:// 或 https:// 開頭）');return;}
+  if(costLink && !/^https?:\/\//i.test(costLink)){alert('成本資料連結請填寫完整網址（需以 http:// 或 https:// 開頭）');return;}
   const assignees=ar.split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
   assignees.forEach(a=>assigneeColor(a));
 
@@ -2552,11 +2565,11 @@ function saveSlot(){
       const prev=data[i];
       const dateChanged = prev.date !== date;
       const order = dateChanged ? nextOrderForDate(date) : (prev.order??0);
-      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,fileLink,toolIds,order,isNew:true};
+      data[i]={id:editingId,date,endDate,type,start,end,timeNote,desc,assignees,venue,fileLink,costLink,toolIds,order,isNew:true};
     }
   }else{
     const order = nextOrderForDate(date);
-    data.push({id:nextId,date,endDate,type,start,end,timeNote,desc,assignees,venue,fileLink,toolIds,order,isNew:false});
+    data.push({id:nextId,date,endDate,type,start,end,timeNote,desc,assignees,venue,fileLink,costLink,toolIds,order,isNew:false});
     nextId++;
   }
   closeModal();render();scheduleSave();
