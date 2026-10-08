@@ -82,6 +82,13 @@ a{color:inherit}
 #appRoot.show{display:block}
 #listView, #editorView{display:none}
 #listView.active, #editorView.active{display:block}
+#invalidLinkView{display:none;min-height:100vh;align-items:center;justify-content:center;padding:24px;
+  box-sizing:border-box;background:var(--bg)}
+#invalidLinkView.active{display:flex}
+.invalid-link-card{max-width:420px;width:100%;background:#fff;border-radius:16px;padding:32px 28px;text-align:center;
+  box-shadow:0 8px 32px rgba(13,43,78,.14);border-top:5px solid #15426E}
+.invalid-link-card h2{font-size:1.25rem;font-weight:800;color:#0D2B4E;margin-bottom:12px}
+.invalid-link-card p{font-size:.9rem;line-height:1.7;color:var(--muted)}
 
 /* ══════════════════════════════════════
    LIST VIEW (通告列表首頁)
@@ -821,6 +828,14 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
     <button class="fab" onclick="openNewNoticeModal()" title="新增通告">
       <svg width="22" height="22"><use href="#ico-plus"/></svg>
     </button>
+  </div>
+
+  <!-- ── INVALID SHARE LINK VIEW ── -->
+  <div id="invalidLinkView">
+    <div class="invalid-link-card">
+      <h2>此分享連結已失效</h2>
+      <p>這個連結指定的工項已經被修改或刪除，因此無法再檢視內容。<br>如需查看，請向分享者索取新的連結。</p>
+    </div>
   </div>
 
   <!-- ── EDITOR VIEW ── -->
@@ -2116,6 +2131,13 @@ function nextNoticeOrder(){
 /* ══════════════════════════════════════
    OPEN / SAVE NOTICE (editor)
 ══════════════════════════════════════ */
+function showInvalidShareLink(){
+  document.getElementById('loadingOverlay').classList.add('hide');
+  document.getElementById('listView').classList.remove('active');
+  document.getElementById('editorView').classList.remove('active');
+  document.getElementById('invalidLinkView').classList.add('active');
+}
+
 async function openNotice(id){
   document.getElementById('ncMenu')?.classList.remove('show');
   document.getElementById('loadingOverlay').classList.remove('hide');
@@ -2124,6 +2146,13 @@ async function openNotice(id){
     notice = await fsGetNotice(id);
   }catch(e){ console.error(e); alert('讀取失敗'); document.getElementById('loadingOverlay').classList.add('hide'); return; }
   if(!notice){ alert('找不到此通告'); document.getElementById('loadingOverlay').classList.add('hide'); await goToList(); return; }
+
+  // 依工種分享的連結，如果指定的工項名稱已經不存在（被改名或刪除），這個連結就失效：
+  // 不顯示任何內容，避免原本只能看某個工項的人變成看得到全部。
+  if(isReadOnlyMode && readOnlyTypeFilter && allTypes.length && !allTypes.some(t=>t.name===readOnlyTypeFilter)){
+    showInvalidShareLink();
+    return;
+  }
 
   currentNoticeId = id;
   data = notice.data || [];
