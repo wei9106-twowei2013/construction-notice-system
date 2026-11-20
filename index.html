@@ -523,6 +523,13 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 .ft-item:hover{background:var(--bg)}
 .ft-name{font-size:.84rem;color:#333;min-width:0;overflow-wrap:anywhere}
 .ft-item.on .ft-name{font-weight:700;color:var(--brand)}
+.ft-item .ft-name{flex:1;min-width:0}
+/* 工具圈選區每一項右側的刪除鈕：滑過才出現；手機（無滑鼠）則常駐淡色顯示 */
+.ft-del{flex:0 0 auto;border:none;background:none;color:var(--muted);cursor:pointer;
+  padding:2px;border-radius:4px;display:inline-flex;opacity:0;transition:opacity .15s,color .15s}
+.ft-item:hover .ft-del{opacity:.7}
+.ft-del:hover{opacity:1!important;color:#c62828}
+@media (hover:none){.ft-del{opacity:.45}}
 .ft-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .ft-add input{flex:1 1 140px;min-width:0}
 .ft-add button{flex:0 0 auto}
@@ -2922,6 +2929,7 @@ function renderFormTools(){
     const on = formToolIds.has(t.id);
     return `<div class="ft-item${on?' on':''}" onclick="toggleFormTool('${t.id}')">
       <span class="tl-check${on?' on':''}"></span><span class="ft-name">${escapeHtml(t.name)}</span>
+      <button type="button" class="ft-del" title="刪除這個工具" onclick="event.stopPropagation();deleteTool('${t.id}')">${svgIcon('ico-trash',12)}</button>
     </div>`;
   }).join('');
 }
