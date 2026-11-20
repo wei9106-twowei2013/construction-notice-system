@@ -433,6 +433,12 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
 
 .slot-actions{margin-top:10px;display:flex;align-items:center;gap:7px}
 .slot-actions .btn-delete-themed{margin-left:auto;color:#fff;border:none;background:var(--brand)}
+/* 分享到 LINE 按鈕：用 LINE 綠色，一眼就看得出來是分享用 */
+.slot-actions .btn-line{color:#06C755;border-color:#B7EBCB;background:#fff}
+.slot-actions .btn-line:hover{background:#EAFBF1}
+/* 從 LINE 分享連結（?slot=）開啟時，被分享的那筆工作會閃爍標示 */
+.slot.slot-focus{box-shadow:0 0 0 3px #06C755,0 6px 24px rgba(6,199,85,.25);animation:slotFocus 1.2s ease-in-out 3}
+@keyframes slotFocus{0%,100%{box-shadow:0 0 0 3px #06C755,0 6px 24px rgba(6,199,85,.25)}50%{box-shadow:0 0 0 6px rgba(6,199,85,.35),0 6px 24px rgba(6,199,85,.1)}}
 
 /* ── Empty ── */
 .empty{text-align:center;padding:60px 20px;color:var(--muted)}
@@ -744,6 +750,10 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   <symbol id="ico-gantt" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M2 3h7M2 6h4M2 9h9M2 12h5"/>
     <path d="M2 3v10" stroke-width="1.2" opacity=".4"/>
+  </symbol>
+  <symbol id="ico-line" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 2.2c-3.5 0-6.3 2.3-6.3 5.1 0 2.5 2.2 4.6 5.2 5l-.3 1.6c-.05.3.25.5.5.35l2.6-1.7c2.6-.6 4.6-2.7 4.6-5.2C14.3 4.5 11.5 2.2 8 2.2z"/>
+    <path d="M5 6.2v2.6h1.4M7.6 6.2v2.6M9.2 8.8V6.2l1.8 2.6V6.2"/>
   </symbol>
   <symbol id="ico-link" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M6.5 9.5a3 3 0 004.2 0l2-2a3 3 0 00-4.2-4.2l-1 1"/>
@@ -1539,6 +1549,7 @@ let isReadOnlyMode = false;
 let readOnlyNoticeId = null;
 let readOnlyTypeFilter = null;
 let readOnlyAssigneeFilter = null;
+let readOnlyFocusSlotId = null; // ?slot=<id>：從 LINE 分享的單筆工作，開啟後捲到該筆並標示
 
 function getUrlParam(name){
   return new URLSearchParams(window.location.search).get(name);
@@ -1606,6 +1617,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
     readOnlyNoticeId = viewId;
     readOnlyTypeFilter = getUrlParam('type') || null;
     readOnlyAssigneeFilter = getUrlParam('person') || null;
+    readOnlyFocusSlotId = getUrlParam('slot') ? Number(getUrlParam('slot')) : null;
     document.body.classList.add('readonly-mode');
     document.getElementById('gateScreen').classList.add('hide');
     bootApp();
@@ -1941,12 +1953,13 @@ function openNcMenu(e, id){
   menu.innerHTML = `
     <button onclick="openShareTypeMenu('${id}')">${svgIcon('ico-link',14)} 依工種分享連結</button>
     <button onclick="openSharePersonMenu('${id}')">${svgIcon('ico-person',14)} 依人員分享連結</button>
+    <button onclick="shareNoticeToLine('${id}')" style="color:#06C755">${svgIcon('ico-line',14)} 分享通告到 LINE</button>
     <button onclick="duplicateNotice('${id}')">${svgIcon('ico-copy',14)} 複製通告</button>
     ${statusBtn}
     <button class="danger" onclick="confirmDeleteNotice('${id}')">${svgIcon('ico-trash',14)} 刪除通告</button>
   `;
   const r = e.currentTarget.getBoundingClientRect();
-  const menuW = 200, menuH = 220;
+  const menuW = 200, menuH = 260;
   let top = r.bottom + 4;
   if(top + menuH > window.innerHeight) top = Math.max(8, r.top - menuH - 4);
   let left = r.right - menuW;
@@ -2047,6 +2060,94 @@ function copyShareLinkByPerson(id, name){
     prompt('請手動複製以下唯讀分享連結：', url);
   }
 }
+/* ══════════════════════════════════════
+   分享到 LINE
+   - 單筆工作：訊息裡直接列出日期、時間、地點、工種、人員、工作內容、工具、
+     相關檔案，收到的人不用點連結就看得到細項；連結會開啟唯讀通告並捲到這一筆。
+   - 整份通告：訊息列出通告名稱、地點、期間與工作筆數，附完整唯讀連結。
+   「成本資料」連結屬於內部資訊，不會放進 LINE 訊息。
+══════════════════════════════════════ */
+const LINE_SHARE_URL = 'https://line.me/R/share?text=';
+const WD_ZH = ['日','一','二','三','四','五','六'];
+
+/* 把工作內容的 rich text（HTML）轉成純文字，保留換行與條列。
+   用 DOMParser 解析，不會執行內容裡的任何程式或載入圖片。 */
+function htmlToPlainText(html){
+  if(!html) return '';
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+  const root = doc.body.firstElementChild;
+  root.querySelectorAll('br').forEach(br=>br.replaceWith('\n'));
+  root.querySelectorAll('li').forEach(li=>{ li.prepend('・'); li.append('\n'); });
+  root.querySelectorAll('p,div,h1,h2,h3,h4,ul,ol').forEach(el=>{ el.prepend('\n'); el.append('\n'); });
+  return root.textContent.replace(/\u00a0/g,' ').replace(/[ \t]+\n/g,'\n').replace(/\n{2,}/g,'\n').trim();
+}
+function fmtSlotDateLine(s){
+  const d = new Date(s.date+'T00:00:00');
+  let txt = s.endDate
+    ? `${fmtDateRange(s.date, s.endDate)}`
+    : `${d.getMonth()+1}/${d.getDate()}（${WD_ZH[d.getDay()]}）`;
+  const t = s.end ? `${s.start} ~ ${s.end}` : (s.start||'');
+  if(t) txt += ` ${t}`;
+  if(s.timeNote) txt += `（${s.timeNote}）`;
+  return txt;
+}
+function buildSlotLineText(s){
+  const title = headerCfg?.title || '工作通告';
+  const lines = [`【${title}】工作通知`, ''];
+  lines.push(`📅 ${fmtSlotDateLine(s)}`);
+  if(s.venue) lines.push(`📍 ${s.venue}`);
+  lines.push(`🏷 工種：${typeDisplayLabel(s.type)}`);
+  if((s.assignees||[]).length) lines.push(`👥 人員：${s.assignees.join('、')}`);
+  const desc = htmlToPlainText(s.desc);
+  if(desc) lines.push('', '📝 工作內容：', desc);
+  const tools = slotToolNames(s);
+  if(tools.length) lines.push('', `🧰 工具：${tools.join('、')}`);
+  if(s.fileLink) lines.push(`📎 相關檔案：${s.fileLink}`);
+  lines.push('', `🔗 查看通告：${SHARE_LINK_BASE}?view=${currentNoticeId}&slot=${s.id}`);
+  return lines.join('\n');
+}
+/* 開啟 LINE 分享畫面；同時把訊息複製到剪貼簿，桌機沒裝 LINE 或被擋時可以直接貼上 */
+function openLineShare(text){
+  // window.open 必須在點擊當下同步呼叫，否則會被瀏覽器當成彈出視窗擋掉
+  const w = window.open(LINE_SHARE_URL + encodeURIComponent(text), '_blank', 'noopener');
+  const tip = '已複製通知內容到剪貼簿。\n若 LINE 沒有自動開啟，可以直接貼到 LINE 對話或群組。';
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>{ if(!w) alert(tip); }).catch(()=>{
+      if(!w) prompt('請手動複製以下內容貼到 LINE：', text);
+    });
+  }else if(!w){
+    prompt('請手動複製以下內容貼到 LINE：', text);
+  }
+}
+function shareSlotToLine(id){
+  const s = data.find(x=>x.id===id);
+  if(!s || !currentNoticeId) return;
+  openLineShare(buildSlotLineText(s));
+}
+async function shareNoticeToLine(id){
+  const menu = document.getElementById('ncMenu');
+  menu.classList.remove('show'); menu.classList.remove('nc-menu-scroll');
+  const n = noticesCache.find(x=>x.id===id);
+  const hc = Object.assign({}, HD_DEFAULTS, n?.headerCfg||{});
+  const items = n?.data || [];
+  const lines = [`【${hc.title || '工作通告'}】`];
+  if(hc.venue) lines.push(`📍 ${hc.venue}`);
+  if(hc.date) lines.push(`📅 ${hc.date}`);
+  if(items.length) lines.push(`📋 共 ${items.length} 項工作，點連結可查看每一項的細節`);
+  lines.push('', `🔗 ${SHARE_LINK_BASE}?view=${id}`);
+  openLineShare(lines.join('\n'));
+}
+/* 唯讀模式：捲到被分享的那筆工作並標示 */
+function focusSharedSlot(id){
+  requestAnimationFrame(()=>{
+    const el = document.querySelector(`.slot[data-id="${id}"]`);
+    if(!el) return; // 這筆已被刪除或不在篩選範圍：照常顯示整份通告
+    el.classList.add('slot-focus');
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    setTimeout(()=>el.classList.remove('slot-focus'), 8000);
+  });
+}
+
 document.addEventListener('click', e=>{
   const menu = document.getElementById('ncMenu');
   if(menu.classList.contains('show') && !menu.contains(e.target) && !e.target.closest('.nc-menu-btn')){
@@ -2189,6 +2290,7 @@ async function openNotice(id){
   updateDateFilterLabel();
   render();
   setSaveStatus('saved');
+  if(isReadOnlyMode && readOnlyFocusSlotId) focusSharedSlot(readOnlyFocusSlotId);
 }
 
 let saveTimer = null;
@@ -2337,6 +2439,9 @@ function render(){
           <button class="btn btn-ghost btn-sm" onclick="duplicateSlot(${s.id})" title="複製這筆工作，修改後另存成新的一筆"
             style="color:var(--brand);border-color:var(--border)">
             ${svgIcon('ico-copy',12)} 複製
+          </button>
+          <button class="btn btn-ghost btn-sm btn-line" onclick="shareSlotToLine(${s.id})" title="把這筆工作的細項傳到 LINE，附上可查看通告的連結">
+            ${svgIcon('ico-line',12)} LINE
           </button>
           <button class="btn btn-sm btn-delete-themed" onclick="deleteSlot(${s.id})">
             ${svgIcon('ico-trash',12)} 刪除
