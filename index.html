@@ -2106,17 +2106,45 @@ function buildSlotLineText(s){
   lines.push('', `🔗 查看通告：${SHARE_LINK_BASE}?view=${currentNoticeId}&slot=${s.id}`);
   return lines.join('\n');
 }
-/* 開啟 LINE 分享畫面；同時把訊息複製到剪貼簿，桌機沒裝 LINE 或被擋時可以直接貼上 */
-function openLineShare(text){
-  // window.open 必須在點擊當下同步呼叫，否則會被瀏覽器當成彈出視窗擋掉
-  const w = window.open(LINE_SHARE_URL + encodeURIComponent(text), '_blank', 'noopener');
-  const tip = '已複製通知內容到剪貼簿。\n若 LINE 沒有自動開啟，可以直接貼到 LINE 對話或群組。';
+/* 分享到 LINE：
+   - 手機（iOS / Android）：直接叫出 LINE App 的分享畫面，選聊天室就能送出。
+   - 電腦：line.me 的分享網址在電腦上只會跳到 LINE 官網首頁，所以不開任何網頁，
+     只把訊息複製到剪貼簿，到電腦版 LINE 對話框直接貼上（Ctrl/⌘+V）即可。 */
+function isMobileDevice(){
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1); // iPadOS 偽裝成 Mac
+}
+function showLineToast(msg){
+  let t = document.getElementById('lineToast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'lineToast';
+    t.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:3000;'+
+      'background:#06C755;color:#fff;padding:12px 20px;border-radius:10px;font-size:.9rem;font-weight:600;'+
+      'box-shadow:0 6px 20px rgba(0,0,0,.18);max-width:90vw;text-align:center;line-height:1.5;transition:opacity .3s';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{ t.style.opacity = '0'; }, 3000);
+}
+function copyTextForLine(text, okMsg){
   if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(()=>{ if(!w) alert(tip); }).catch(()=>{
-      if(!w) prompt('請手動複製以下內容貼到 LINE：', text);
+    navigator.clipboard.writeText(text).then(()=>showLineToast(okMsg)).catch(()=>{
+      prompt('請手動複製以下內容貼到 LINE：', text);
     });
-  }else if(!w){
+  }else{
     prompt('請手動複製以下內容貼到 LINE：', text);
+  }
+}
+function openLineShare(text){
+  if(isMobileDevice()){
+    // 手機：同一個分頁導向 line.me 分享網址，系統會直接切到 LINE App，不會留下空白分頁
+    copyTextForLine(text, '已複製通知內容，正在開啟 LINE…');
+    location.href = LINE_SHARE_URL + encodeURIComponent(text);
+  }else{
+    copyTextForLine(text, '已複製通知內容，請到 LINE 對話框貼上（Ctrl / ⌘ + V）');
   }
 }
 function shareSlotToLine(id){
