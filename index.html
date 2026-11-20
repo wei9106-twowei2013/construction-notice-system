@@ -339,6 +339,10 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
   padding:11px 16px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border)}
 .legend-item{display:flex;align-items:center;gap:5px;font-size:.74rem;font-weight:600;color:var(--muted)}
 .legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+/* 工種圖例只在編輯畫面顯示；分享出去的唯讀通告、匯出 JPG、列印都不顯示 */
+.readonly-mode .legend,
+body.exporting .legend{display:none!important}
+@media print{.legend{display:none!important}}
 
 /* ── Day Group ── */
 .day-group{margin-bottom:32px}
@@ -3077,6 +3081,7 @@ function exportJPG(){
   const curType = document.getElementById('filterType').value;
   if(hintText) hintText.textContent = curType ? `正在產生「${curType}」篩選版 JPG，請稍候…` : '正在產生 JPG，請稍候…';
   hint.classList.add('show');
+  document.body.classList.add('exporting');
   document.querySelectorAll('.slot-actions').forEach(el=>el.style.display='none');
   document.querySelectorAll('.drag-handle').forEach(el=>el.style.display='none');
   const toolbar=document.querySelector('.toolbar');
@@ -3097,6 +3102,7 @@ function exportJPG(){
       backBtn.style.display='';
       document.querySelectorAll('.slot-actions').forEach(el=>el.style.display='');
       document.querySelectorAll('.drag-handle').forEach(el=>el.style.display='');
+      document.body.classList.remove('exporting');
       hint.classList.remove('show');
       const typeSuffix = curType ? `-${curType}` : '';
       const filename = `${(headerCfg?.title||'施工安排')}_${new Date().toISOString().slice(0,10)}${typeSuffix}.jpg`;
@@ -3107,6 +3113,7 @@ function exportJPG(){
       backBtn.style.display='';
       document.querySelectorAll('.slot-actions').forEach(el=>el.style.display='');
       document.querySelectorAll('.drag-handle').forEach(el=>el.style.display='');
+      document.body.classList.remove('exporting');
       hint.classList.remove('show');
       alert('JPG 匯出失敗，請稍後再試');
     });
