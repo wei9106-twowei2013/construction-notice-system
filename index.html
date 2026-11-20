@@ -911,32 +911,6 @@ main{max-width:1000px;margin:0 auto;padding:26px 24px 70px}
           <button class="btn btn-ghost" onclick="exportJPG()">
             <svg class="icon" width="14" height="14"><use href="#ico-jpg"/></svg> 匯出JPG
           </button>
-          <div class="gantt-export-wrap">
-            <button class="btn btn-ghost" onclick="toggleGanttMenu(event)">
-              <svg class="icon" width="14" height="14"><use href="#ico-gantt"/></svg> 甘特圖
-            </button>
-            <div class="gantt-export-menu" id="ganttExportMenu">
-              <button onclick="exportGantt('jpg')">
-                匯出 JPG
-              </button>
-              <button onclick="exportGantt('pdf')">
-                匯出 PDF
-              </button>
-            </div>
-          </div>
-          <div class="gantt-export-wrap">
-            <button class="btn btn-ghost" onclick="toggleCalMenu(event)">
-              <svg class="icon" width="14" height="14"><use href="#ico-cal"/></svg> 月曆
-            </button>
-            <div class="gantt-export-menu" id="calExportMenu">
-              <button onclick="exportCalendar('jpg')">
-                匯出 JPG
-              </button>
-              <button onclick="exportCalendar('pdf')">
-                匯出 PDF
-              </button>
-            </div>
-          </div>
           <span class="save-status" id="saveStatus"><span class="dot"></span><span id="saveStatusText">已儲存</span></span>
         </div>
       </div>
@@ -3142,20 +3116,7 @@ function exportJPG(){
 /* ══════════════════════════════════════
    GANTT CHART (weekly table-style, JPG/PDF export)
 ══════════════════════════════════════ */
-function toggleGanttMenu(e){
-  e.stopPropagation();
-  document.getElementById('ganttExportMenu').classList.toggle('show');
-}
-function toggleCalMenu(e){
-  e.stopPropagation();
-  document.getElementById('calExportMenu').classList.toggle('show');
-}
-document.addEventListener('click', e=>{
-  const m = document.getElementById('ganttExportMenu');
-  if(m.classList.contains('show') && !e.target.closest('.gantt-export-wrap')) m.classList.remove('show');
-  const cm = document.getElementById('calExportMenu');
-  if(cm.classList.contains('show') && !e.target.closest('.gantt-export-wrap')) cm.classList.remove('show');
-});
+/* 工具列上的「甘特圖」「月曆」匯出按鈕已移除（2026-11-20）；下方產生甘特圖／月曆的程式保留未用 */
 
 /* Build Monday-start week buckets spanning the full range of every slot's
    date (and endDate, for multi-day spans). Returns [{start:Date, end:Date}] */
